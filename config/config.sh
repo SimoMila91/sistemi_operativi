@@ -24,6 +24,8 @@ export SO_NAVI=1
 export SO_FILL=10
 # Time of execution 
 export SO_DAYS=10
+# Number of freeDocks
+export SO_BANCHINE = 10
 
 
 
