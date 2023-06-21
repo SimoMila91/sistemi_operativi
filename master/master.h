@@ -9,7 +9,7 @@ typedef struct {
     int life;   // tempo di vita misurato in giorni 
 } good; 
 
-typedef struct {
+typedef struct { 
     good *request;
     good *offer; 
 } warehouse; 
@@ -18,7 +18,7 @@ typedef struct {
     int pid; 
     coordinate* position; 
     warehouse inventory; 
-    int freeDocks; 
+    int sem_docks_id; 
 } port; 
 
 typedef struct {
@@ -26,13 +26,14 @@ typedef struct {
     coordinate* position;
     good *listGoods; 
     double totalCargo; //decrementa/incrementa ogni volta che carico/scarico una merce
-} nave;
+} ship;
 
 int init_var(); 
 
-int spawnPorts(); 
+int initPort(); 
 
-int spawnShips(); 
+int initShip(); 
 
+double distance(coordinate* positionX, coordinate* positionY);
 
 
