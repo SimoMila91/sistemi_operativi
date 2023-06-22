@@ -30,10 +30,6 @@ typedef struct {
 
 int init_var(); 
 
-int initPort(); 
 
-int initShip(); 
-
-double distance(coordinate* positionX, coordinate* positionY);
 
 
