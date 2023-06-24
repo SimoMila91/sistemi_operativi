@@ -1,3 +1,5 @@
+#include "../macro/macro.h"
+
 void initShip(ship *naveList, int shmid_nave)
 {
     int i;

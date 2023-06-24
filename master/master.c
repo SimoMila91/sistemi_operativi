@@ -7,7 +7,8 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <unistd.h>
-#include "master.h"; 
+#include "master.h"
+#include "../macro/macro.h"
 
 int SO_PORTI; 
 int SO_NAVI;  
@@ -30,12 +31,21 @@ ship* shipList;
 
 
 int main(int argc, char **argv) {
+
+    init_var();  // initialize of variables 
     int i;
-    char* args[3];
+    char* args[5];
     char* idx_port[3*sizeof(int)+1];
     char* idx_ship[3*sizeof(int)+1];
     char* shmid_port_str[3*sizeof(int)+1];
-    init_var();  // initialize of variables 
+    char* valueTotalOffer[3*sizeof(double)+1]; 
+    char* valueTotalRequest[3*sizeof(double)+1]; 
+    double offerArray[SO_PORTI]; 
+    double requestArray[SO_PORTI]; 
+
+    getCasualWeight(offerArray);
+    getCasualWeight(requestArray);  
+
     args[0] = "porti";
    
     shmid_port = createSharedMemory(sizeof(port) * SO_PORTI); 
@@ -53,7 +63,11 @@ int main(int argc, char **argv) {
             break;
         case 0: 
             sprintf(idx_port, "%d", i);
+            sprintf(valueTotalOffer, "%.2f", offerArray[i]); 
+            sprintf(valueTotalRequest, "%.2f", requestArray[i]); 
             args[1] = idx_port; 
+            args[3] = valueTotalOffer; 
+            args[4] = valueTotalRequest;  
             execv("../porti/porti.c", args);
             TEST ERROR;
             exit(EXIT_FAILURE);
@@ -88,9 +102,27 @@ int main(int argc, char **argv) {
     }
 }
 
+void getCasualWeight(double* offer) {
+    
+    int i; 
+    srand(time(NULL)); 
+    double goodSum = 0.0; 
+
+    for (i = 0; i < SO_PORTI-1; i++) {
+        offer[i] = (double)rand() / RAND_MAX * (SO_FILL - sum); 
+        sum += offer[i]; 
+    }
+
+    offer[SO_PORTI -1] = SO_FILL - sum; 
+
+}
+
 int createSharedMemory(size_t size) {
+
+    int shmid; 
+
     key_t key = ftok(".", 'S'); // genera la chiave per la memoria condivisa
-    int shmid = shmget(key, size, IPC_CREATE | 0666); // crea la memoria condivisa
+    shmid = shmget(key, size, IPC_CREAT E | 0666); // crea la memoria condivisa
 
     if (shmid == -1) {
         perror("shmget"); 
@@ -116,4 +148,3 @@ void init_var() {
         exit(EXIT_FAILURE); 
     }
 }
-

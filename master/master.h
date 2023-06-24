@@ -30,6 +30,8 @@ typedef struct {
 
 int init_var(); 
 
+void getCasualWeight(double* offer);
 
+int createSharedMemory(size_t size);
 
 
