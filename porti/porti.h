@@ -1,4 +1,4 @@
-void initPort(int i, port* portList)
+void initPort(int i, port* portList, double totalOffer, double totalRequest, int semId)
 
 double distance(coordinate* positionX, coordinate* positionY)
 

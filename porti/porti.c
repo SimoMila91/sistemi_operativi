@@ -11,8 +11,7 @@
 #include "../macro/macro.h"
 #include "porti.h"
 
-int SO_PORTI; 
-int SO_NAVI;  
+
 double SO_LATO;  
 int SO_BANCHINE; 
 int SO_MERCI; 
@@ -30,26 +29,23 @@ int main(int argc, char **argv) {
   portList = (port*)shmat(atoi(argv[2]), NULL, 0); 
   double totalOffer = atoi(argv[3]); 
   double totalRequest = atoi(argv[4]); 
-
+  int semId = atoi(argv[5]); 
  
 
   init_var();
-  initPort(index, portList[index], totalOffer, totalRequest);
+  initPort(index, portList[index], totalOffer, totalRequest, semId);
   
 }
 
 
 void init_var() {
     if (getenv("SO_PORTI")) {
-        SO_PORTI = atoi(getenv("SO_PORTI")); 
-        SO_NAVI = atoi(getenv("SO_NAVI")); 
         SO_LATO = atoi(getenv("SO_LATO")); 
         SO_BANCHINE = atoi(getenv("SO_BANCHINE")); 
         SO_MERCI = atoi(getenv("SO_MERCI")); 
         SO_SIZE = atoi(getenv("SO_SIZE")); 
         SO_MAX_VITA = atoi(getenv("SO_MAX_VITA")); 
         SO_MIN_VITA = atoi(getenv("SO_MIN_VITA")); 
-        SO_FILL = atoi(getenv("SO_FILL")); 
     } else {
         printf("Environment variables are not initialized");
         exit(EXIT_FAILURE); 
@@ -58,10 +54,12 @@ void init_var() {
 
 
 
-void initPort(int i, port* portList, double totalOffer, double totalRequest) {
+void initPort(int i, port* portList, double totalOffer, double totalRequest, int semId) {
 
     int numRequest; 
     int numOffer; 
+
+    portList->position = (coordinate*)malloc(sizeof(coordinate)); 
 
     switch (i) {
         case 0:
@@ -93,6 +91,25 @@ void initPort(int i, port* portList, double totalOffer, double totalRequest) {
     portList->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
     initDocksSemaphore(portList); // inizializzo il semaforo
     initializeInventory(portList, totalOffer, totalRequest); 
+
+    struct sembuf sb; 
+    sb.sem_num = 0; 
+    sb.sem_op = -1; 
+    sb.sem_flg = 0; 
+
+    if (semop(semId, &sb, 1) == -1) {
+        perror("semop porto"); 
+        exit("EXIT FAILURE"); 
+    }
+
+    sb.sem_num = 0; 
+    sb.sem_op = 0; 
+    sb.sem_flg = 0; 
+    
+    if (semop(semId, &sb, 1) == -1) {
+        perror("semop porto"); 
+        exit("EXIT FAILURE"); 
+    }
     
 } 
 
@@ -117,7 +134,7 @@ void initializeInventory(port* portList, double totalOffer, double totalRequest)
     int numGoodRequest; 
     int lifeTime;  
     int counterGoodsOffer; 
-    int found; 
+    int found; // tipo merce
 
     // inizializzo la richiesta 
     numGoodRequest = rand() % SO_MERCI + 1; 
@@ -126,27 +143,59 @@ void initializeInventory(port* portList, double totalOffer, double totalRequest)
     portList->inventory.request[0].amount = totalRequest; 
 
     //inizializzo l'offerta 
-    counterGoodsOffer = rand() % SO_MERCI + 1; 
-    int casualOffer[counterGoodsOffer]; 
-    int casualOfferGoods[counterGoodsOffer]; 
-    getCasualWeight(casualOffer, counterGoodsOffer, totalOffer); 
+    counterGoodsOffer = rand() % SO_MERCI + 1; // ad esempio 3 tipi di merce 
+    double casualAmountOffer[counterGoodsOffer]; 
+    getCasualWeight(casualAmountOffer, counterGoodsOffer, totalOffer); 
 
     portList->inventory.offer = (good*)malloc(counterGoodsOffer * sizeof(good)); 
 
     for (j = 0; j < counterGoodsOffer; j++) {
+
         found = rand() % SO_MERCI + 1; 
         while((j != 0 && isDuplicate(found, counterGoodsOffer, portList)) || found == numGoodRequest) {
             found = rand() % SO_MERCI + 1; 
         } 
 
         portList->inventory.offer[j].idGood = found; 
-        portList->inventory.offer[j].amount = casualOffer[j]; 
+        portList->inventory.offer[j].amount = casualAmountOffer[j]; 
+        
+        portList->inventory.offer[j].lootSize = createLoot(casualAmountOffer[j]); 
         lifeTime = rand() % (SO_MAX_VITA + 1 - SO_MIN_VITA) + SO_MIN_VITA;
         portList->inventory.offer[j].life = lifeTime;          
     }
 }
 
-void getCasualWeight(double* offer, int counter, int totalOffer) {
+lot* createLoots(double amount) {
+
+    int i = 0; 
+    int maxLoots; 
+    lot* lots;
+    double lotSize; 
+
+    lotSize = rand() % SO_SIZE + 1; 
+    while (lotSize > amount) {
+        lotSize = rand() % SO_SIZE + 1; 
+    }
+
+    maxLoots = amount / lotSize + 1; 
+    lots = (double*)malloc(maxLoots * sizeof(lot)); 
+
+    for (i; i < maxLoots-1; i++) {
+        lots[i].value = lotSize; 
+        lots[i].available = 1; 
+        lots[i].type = 0; 
+        carico -= lotSize; 
+    }
+
+    lots[maxLoots-1].value = carico; 
+    lots[maxLoots-1].available = 1; 
+    lots[maxLoots-1].type = 0; 
+
+    return lots; 
+}
+
+
+void getCasualWeight(double* offer, int counter, double totalOffer) {
     
     int i; 
     srand(time(NULL)); 
