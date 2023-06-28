@@ -4,9 +4,9 @@ typedef struct {
 } coordinate; 
 
 typedef struct {
+    int id_ship;
     double value; 
     int available; 
-    int booked; // inizializzare anche questo parametro 
     int type; // se 1 => ricevuta; se 0 => generata
 } lot; 
 
@@ -35,11 +35,6 @@ typedef struct {
     good *listGoods; 
     //double totalCargo; //decrementa/incrementa ogni volta che carico/scarico una merce
 } ship;
-
-typedef struct {
-    int keyPortMemory; 
-    coordinate* position; 
-} database; 
 
 typedef struct {
     int shipWithCargo; 

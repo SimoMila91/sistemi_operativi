@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     args[0] = "porti";
 
    
-    int shmid_port = createSharedMemory(sizeof(database)) * SO_PORTI); 
+    int shmid_port = createSharedMemory(sizeof(database) * SO_PORTI); 
     portList = (port*)shmat(shmid_port, NULL, 0); 
     sprintf(shmid_port_str, "%d", shmid_port); 
     args[2] = shmid_ship_str;

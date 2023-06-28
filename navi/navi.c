@@ -46,25 +46,83 @@ int main(int argc, char **argv) {
 
     while (checkEconomy()) {
         
-        // cerco la richiesta del porto più vicino // se non ci sono più offerte o non ci sono più richieste sleep 
+        trovaPortoPiuVicinoConOfferta();
+        trovaPortoConRichiestaEquivalente();
+
+        // Verifica se c'è una banchina libera
+        struct sembuf sb;
+        sb.sem_num = sem_docks_id;  // Indice del semaforo delle banchine
+        sb.sem_op = 0;             // Controllo se il valore del semaforo è 0
+        sb.sem_flg = IPC_NOWAIT;   // Non bloccare il processo
+
+        int semStatus = semop(sem_id, &sb, 1);
+        if (semStatus == -1) {
+            if (errno == EAGAIN) {
+                // Non ci sono banchine libere, la nave deve attendere
+                sb.sem_op = -1;  // Decremento del semaforo di 1 (blocco la nave)
+                sb.sem_flg = 0;
+                semop(sem_id, &sb, 1);
+                // La nave attende finché non c'è una banchina libera
+            } else {
+                // Errore nell'accesso al semaforo delle banchine
+                perror("Errore nell'accesso al semaforo delle banchine");
+                // Gestisci il caso appropriato
+            }
+        } else {
+            // C'è una banchina libera, prenotala
+            sb.sem_op = -1;  // Decremento del semaforo di 1 (prenotazione della banchina)
+            sb.sem_flg = 0;
+            semop(sem_id, &sb, 1);
+
+            // Sposta la nave verso il portoOfferta
+            moveToPort(shipList[shipIndex], portoOfferta, 'O');
+            // Dopo il movimento, puoi eseguire altre azioni necessarie o procedere con lo scarico o il caricamento
+        }
+
+                // Carica il lotto prenotato
+        caricaLotto(&shipList[shipIndex], portoOfferta->inventory.offer[dockIndex].lots);
+
+        // Attendi finché non c'è una banchina libera nel porto della richiesta
+        while (1) {
+            int semStatus = semop(sem_docks_id_richiesta, &sb_richiesta, 1);
+            if (semStatus == -1) {
+                if (errno == EAGAIN) {
+                    // Non ci sono banchine libere nel porto della richiesta, la nave deve attendere
+                    continue;
+                } else {
+                    // Errore nell'accesso al semaforo delle banchine del porto della richiesta
+                    perror("Errore nell'accesso al semaforo delle banchine del porto della richiesta");
+                }
+            } else {
+                // C'è una banchina libera nel porto della richiesta, prenotala
+                sb_richiesta.sem_op = -1;  // Decremento del semaforo di 1 (prenotazione della banchina nel porto della richiesta)
+                sb_richiesta.sem_flg = 0;
+                semop(sem_docks_id_richiesta, &sb_richiesta, 1);
+                break;
+            }
+        }
+
+        // Sposta la nave verso il porto della richiesta
+        moveToPort(&shipList[shipIndex], portoRichiesta, 'R');
+
+        // Rilascia la banchina nel portoOfferta
+        sb.sem_op = 1;  // Incremento del semaforo di 1 (rilascio della banchina in portoOfferta)
+        semop(sem_docks_id, &sb, 1);
 
 
-        // cerco il porto più vicino che soddisfi la richiesta 
-        // mi muovo verso il porto e carico 
-        // mi muovo verso la richiesta e scarico 
+
+
+        moveToPort();
+        ------> libero semaforo 
+        moveToPort();
+        scaricalotto(); /////////// --- > 
 
     } 
 
     // ALTRIMENTI SLEEP 
 
-  
-
     // ripeto tutto 
  
-
-
-
-    
     // Scollega il segmento di memoria condiviso
 
     exit(EXIT_SUCCESS); // Termina il processo figlio
@@ -87,51 +145,6 @@ void initShip(ship* shipList) {
 
 // da rivedere 
 
-port findNearestPortWithRequest(ship* ship) {
-    double minDistance = -1;
-    port nearestPort = NULL;
-    database* db = (database*)shmat(atoi(argv[2]), NULL, 0); 
-    port portList; 
-
-    for (int i = 0; i < SO_PORTI; i++) {
-        portList = (port)shmat(db[i]->keyPortMemory, NULL, 0);
-        if (portList.inventory.request[0].amount > 0) {
-            double dist = distance(ship->position, portList[i].position);
-            if (minDistance == -1 || dist < minDistance) {
-                minDistance = dist;
-                nearestPort = &portList[i];
-            }
-        }
-    }
-
-    return nearestPort;
-}
-
-// da rivedere 
-
-port* findNearestPortWithOffer(port* nearestPort, port* portList, int numPorts) {
-    double minDistance = -1;
-    port* nearestOfferPort = NULL;
-
-    for (int i = 0; i < numPorts; i++) {
-        if (portList[i].inventory.offer != NULL) {
-            good* currentOffer = portList[i].inventory.offer;
-
-            while (currentOffer != NULL) {
-                if (currentOffer->idGood == nearestPort->inventory.request[0].idGood) {
-                    double dist = distance(nearestPort->position, portList[i].position);
-                    if (minDistance == -1 || dist < minDistance) {
-                        minDistance = dist;
-                        nearestOfferPort = &portList[i];
-                    }
-                }
-                currentOffer = currentOffer->next;  // Assuming a linked list of offers
-            }
-        }
-    }
-
-    return nearestOfferPort;
-}
 
 double distance(coordinate* positionX, coordinate* positionY) {
     // ritorna la distanza tra porto e nave tramite la formula della distanza Euclidea
@@ -179,7 +192,7 @@ int checkEconomy() {
         portList = (port)shmat(db->keyPortMemory, NULL, 0); 
 
         if (portList.inventory.request[0].lots->available) {
-            foundRequest = portList.inventory.request->idGood; 
+            foundRequest = portList.inventory.request[0]->idGood; ///////????????
         } 
         int found = 0; 
         for (j = 0; j < SO_PORTI && !found; j++) {
@@ -203,3 +216,92 @@ int checkEconomy() {
 
     return res;  
 }
+
+
+
+port* trovaPortoPiuVicinoConOfferta(ship* nave, port* porti) {
+
+    database* db = (database*)shmat(atoi(argv[2]), NULL, 0); 
+    port portList; 
+    double distanzaMinima = -1;
+    port* portoPiuVicino = NULL;
+
+    for (int i = 0; i < SO_PORTI; i++) {
+        portList = (port)shmat(db[i]->keyPortMemory, NULL, 0);
+
+        if (portList.inventory.offer != NULL && portList.inventory.offer->amount > 0) {
+            double distanza = distance(nave->position, portList.position);
+
+            if (distanzaMinima == -1 || distanza < distanzaMinima) {
+                distanzaMinima = distanza;
+                portoPiuVicino = portList;
+            }
+        }
+    }
+
+    return portoPiuVicino;
+}
+
+port* trovaPortoConRichiestaEquivalente(port* porti, port* portoOfferta, ship* ship) {
+
+    database* db = (database*)shmat(atoi(argv[2]), NULL, 0); 
+    port portList; 
+    
+    for (int i = 0; i < SO_PORTI; i++) {
+        portList = (port)shmat(db[i]->keyPortMemory, NULL, 0);
+
+            if (portList != portoOfferta && portList.inventory.request != NULL) {
+                // Verifica se il porto richiede uno dei tipi di merce offerti da portoOfferta
+                good* richiesta = portList.inventory.request;
+                good* offerta = portoOfferta->inventory.offer;
+
+                while (offerta != NULL) {
+                    if (richiesta->idGood == offerta->idGood) {
+                        // Blocca la richiesta nel porto trovato
+                        richiesta->lots->id_ship = ship->pid;
+
+                        // Prenota il lotto in portoOfferta
+                        offerta->lots->id_ship = ship->pid ;
+
+                        return &portList;
+                    }
+
+                    offerta = offerta->next;
+                }
+            }
+        }
+
+    return NULL; // Nessun porto con richiesta equivalente trovato
+}
+
+
+/* SPIEGAZIONE trovaPortoConRichiestaEquivalente: utilizziamo un ciclo while per confrontare ogni tipo di merce offerta da portoOfferta con la richiesta 
+nel porto corrente. Se viene trovata una corrispondenza, blocciamo la richiesta nel porto trovato, prenotiamo il lotto corrispondente in portoOfferta 
+e decrementiamo il semaforo della banchina. Se non viene trovata nessuna corrispondenza, passiamo all'iterazione successiva 
+con il porto successivo fino a quando non viene trovato un porto con una richiesta equivalente. Se nessun porto con richiesta 
+equivalente viene trovato, restituiamo NULL*/
+
+
+void caricaLotto(ship* ship, port* portoOfferta ) {
+
+    double quantita = lotto->amount;
+    double tempoCaricamento = quantita / SO_SPEED;
+    int i;
+    good* listGoods = ship->listGoods;
+    lot* 
+    struct timespec sleepTime;
+    sleepTime.tv_sec = (int)tempoCaricamento;
+    sleepTime.tv_nsec = (tempoCaricamento - (int)tempoCaricamento) * 1e9;
+
+    nanosleep(&sleepTime, NULL);
+
+    while()
+    for (i = 0; i < MAX_GOODS; i++) {
+        if (ship->listGoods[i].idGood == lotto->idGood) {
+            // Aggiorna la quantità della merce sulla nave
+            nave->listGoods[i].amount += lotto->amount;
+            break;
+        }
+    }
+}
+

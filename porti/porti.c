@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
     init_var();
 
     // creo la memoria condivisa per il porto 
-    shmid_port = createSharedMemory(sizeof(port)) * 1); 
+    shmid_port = createSharedMemory(sizeof(port) * 1); 
     portList = (port)shmat(shmid_database, NULL, 0); 
 
     myData[index].keyPortMemory = shmid_port; 
@@ -107,7 +107,7 @@ void initPort(int i, port portList, double totalOffer, double totalRequest, int 
     sb.sem_op = -1; 
     sb.sem_flg = 0; 
 
-    if (semop(semId, &sb, 1) == -1) {
+    if (semop(semId, &sb, 1) == -1) {   /////semId da inizializzare??? 
         perror("semop porto"); 
         exit("EXIT FAILURE"); 
     }
@@ -181,6 +181,7 @@ lot* createLoots(double amount) {
     int maxLoots; 
     lot* lots;
     double lotSize; 
+    double carico; //////aggiunto rachy 
 
     lotSize = rand() % SO_SIZE + 1; 
     while (lotSize > amount) {
