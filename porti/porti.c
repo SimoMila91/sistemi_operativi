@@ -19,21 +19,27 @@ int SO_SIZE;
 int SO_MAX_VITA; 
 int SO_MIN_VITA; 
 int SO_FILL; 
-port* portList;
-
+port portList;
+database* myData;  
+int shmid_port; 
 
 
 int main(int argc, char **argv) {
 
-  int index = atoi(argv[1]);
-  portList = (port*)shmat(atoi(argv[2]), NULL, 0); 
-  double totalOffer = atoi(argv[3]); 
-  double totalRequest = atoi(argv[4]); 
-  int semId = atoi(argv[5]); 
- 
+    int index = atoi(argv[1]);
+    myData = (database*)shmat(atoi(argv[2]), NULL, 0); 
+    double totalOffer = atoi(argv[3]); 
+    double totalRequest = atoi(argv[4]); 
+    int semId = atoi(argv[5]); 
+    init_var();
 
-  init_var();
-  initPort(index, portList[index], totalOffer, totalRequest, semId);
+    // creo la memoria condivisa per il porto 
+    shmid_port = createSharedMemory(sizeof(port)) * 1); 
+    portList = (port)shmat(shmid_database, NULL, 0); 
+
+    myData[index].keyPortMemory = shmid_port; 
+   
+    initPort(index, portList, totalOffer, totalRequest, semId);
   
 }
 
@@ -54,39 +60,43 @@ void init_var() {
 
 
 
-void initPort(int i, port* portList, double totalOffer, double totalRequest, int semId) {
+void initPort(int i, port portList, double totalOffer, double totalRequest, int semId) {
 
     int numRequest; 
     int numOffer; 
 
     portList->position = (coordinate*)malloc(sizeof(coordinate)); 
+    myData.position = (coordinate*)malloc(sizeof(coordinate));
 
     switch (i) {
         case 0:
-            portList[0].position->x = 0;
-            portList[0].position->y = 0;
+            portList.position->x = 0;
+            portList.position->y = 0;
             break;
         case 1: 
-            portList[1].position->x = 0;
-            portList[1].position->y = SO_LATO;
+            portList.position->x = 0;
+            portList.position->y = SO_LATO;
             break;
 
         case 2 : 
-            portList[2].position->x = SO_LATO;
-            portList[2].position->y = SO_LATO;
+            portList.position->x = SO_LATO;
+            portList.position->y = SO_LATO;
             break;
 
         case 3: 
-            portList[3].position->x = SO_LATO;
-            portList[3].position->y = 0; 
+            portList.position->x = SO_LATO;
+            portList.position->y = 0; 
             break;
         
         default:
-            portList[i].position->x = (rand()%(SO_LATO + 1));
-            portList[i].position->y = (rand()%(SO_LATO + 1));
+            portList.position->x = (rand()%(SO_LATO + 1));
+            portList.position->y = (rand()%(SO_LATO + 1));
 
             break;
     }
+
+    myData[index].position = portList.position;
+    
     portList->pid = getpid(); 
     portList->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
     initDocksSemaphore(portList); // inizializzo il semaforo
@@ -128,7 +138,7 @@ int isDuplicate(int numGood, int numOffer, port* portList) {
     return found; 
 } 
 
-void initializeInventory(port* portList, double totalOffer, double totalRequest) {
+void initializeInventory(port portList, double totalOffer, double totalRequest) {
 
     int j; 
     int numGoodRequest; 
@@ -184,12 +194,14 @@ lot* createLoots(double amount) {
         lots[i].value = lotSize; 
         lots[i].available = 1; 
         lots[i].type = 0; 
+        lots[i].booked = 1; 
         carico -= lotSize; 
     }
 
     lots[maxLoots-1].value = carico; 
     lots[maxLoots-1].available = 1; 
     lots[maxLoots-1].type = 0; 
+    lots[maxLoots-1].booked = 1; 
 
     return lots; 
 }
@@ -210,7 +222,7 @@ void getCasualWeight(double* offer, int counter, double totalOffer) {
 
 }
 
-void initDocksSemaphore(port* portList) {
+void initDocksSemaphore(port portList) {
 
     if (portList.sem_docks_id == -1) {
         perror("semget"); 

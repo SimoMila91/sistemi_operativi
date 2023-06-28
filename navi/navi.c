@@ -85,6 +85,54 @@ void initShip(ship* shipList) {
    
 }
 
+// da rivedere 
+
+port findNearestPortWithRequest(ship* ship) {
+    double minDistance = -1;
+    port nearestPort = NULL;
+    database* db = (database*)shmat(atoi(argv[2]), NULL, 0); 
+    port portList; 
+
+    for (int i = 0; i < SO_PORTI; i++) {
+        portList = (port)shmat(db[i]->keyPortMemory, NULL, 0);
+        if (portList.inventory.request[0].amount > 0) {
+            double dist = distance(ship->position, portList[i].position);
+            if (minDistance == -1 || dist < minDistance) {
+                minDistance = dist;
+                nearestPort = &portList[i];
+            }
+        }
+    }
+
+    return nearestPort;
+}
+
+// da rivedere 
+
+port* findNearestPortWithOffer(port* nearestPort, port* portList, int numPorts) {
+    double minDistance = -1;
+    port* nearestOfferPort = NULL;
+
+    for (int i = 0; i < numPorts; i++) {
+        if (portList[i].inventory.offer != NULL) {
+            good* currentOffer = portList[i].inventory.offer;
+
+            while (currentOffer != NULL) {
+                if (currentOffer->idGood == nearestPort->inventory.request[0].idGood) {
+                    double dist = distance(nearestPort->position, portList[i].position);
+                    if (minDistance == -1 || dist < minDistance) {
+                        minDistance = dist;
+                        nearestOfferPort = &portList[i];
+                    }
+                }
+                currentOffer = currentOffer->next;  // Assuming a linked list of offers
+            }
+        }
+    }
+
+    return nearestOfferPort;
+}
+
 double distance(coordinate* positionX, coordinate* positionY) {
     // ritorna la distanza tra porto e nave tramite la formula della distanza Euclidea
     double dx = positionY->x - positionX->x; 
@@ -123,15 +171,19 @@ int checkEconomy() {
     int foundRequest = 0; 
     int res; 
     good* currentOffer; 
-    port* portList = (port*)shmat(atoi(argv[2]), NULL, 0); 
+    database* db = (database*)shmat(atoi(argv[2]), NULL, 0); 
+    port portList; 
+
     
     for (i = 0; i < SO_PORTI && !res; i++) {
-        if (portList[i].inventory.request[0].lots->available) {
-            foundRequest = portList[i].inventory.request->idGood; 
+        portList = (port)shmat(db->keyPortMemory, NULL, 0); 
+
+        if (portList.inventory.request[0].lots->available) {
+            foundRequest = portList.inventory.request->idGood; 
         } 
         int found = 0; 
         for (j = 0; j < SO_PORTI && !found; j++) {
-            currentOffer = portList[i].inventory.offer; 
+            currentOffer = portList.inventory.offer; 
 
             while (currentOffer != NULL && !found) {
                 if (currentOffer->lots->available && currentOffer->idGood == foundRequest) {
@@ -143,6 +195,10 @@ int checkEconomy() {
         
         res = found;
 
+    }
+    if (shmdt(portList) == -1) {
+        perror("shmdt: ship -> checkEconomy"); 
+        exit(EXIT_FAILURE); 
     }
 
     return res;  

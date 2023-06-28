@@ -22,7 +22,7 @@ int SO_FILL;
 
 // port's variables 
 int shmid_port; 
-port* portList;
+database* portList;
 
 // ship's variables 
 int shmid_ship;
@@ -37,13 +37,15 @@ int main(int argc, char **argv) {
     char* args[6];
     char* idx_port[3*sizeof(int)+1];
     char* idx_ship[3*sizeof(int)+1];
-    char* shmid_port_str[3*sizeof(int)+1];
+    char* shmid_port_str[3*sizeof(int)+1]; 
     char* shmid_ship_str[3*sizeof(int)+1];
     char* valueTotalOffer[3*sizeof(double)+1]; 
     char* valueTotalRequest[3*sizeof(double)+1]; 
     char* keySemMaster[3*sizeof(int)+1]; 
     double offerArray[SO_PORTI]; 
     double requestArray[SO_PORTI]; 
+    int memoryKeys[SO_PORTI]; 
+    int memoryKeysLength = sizeof(memoryKeys) / sizeof(int); 
     int semStartSimulation =  semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo
 
     if (semStartSimulation == -1) {
@@ -63,11 +65,14 @@ int main(int argc, char **argv) {
     getCasualWeight(requestArray);  
 
     args[0] = "porti";
+
    
-    shmid_port = createSharedMemory(sizeof(port) * SO_PORTI); 
+    int shmid_port = createSharedMemory(sizeof(database)) * SO_PORTI); 
     portList = (port*)shmat(shmid_port, NULL, 0); 
-    sprintf(shmid_port_str, "%d", shmid_port);
-    args[2] = shmid_port_str;
+    sprintf(shmid_port_str, "%d", shmid_port); 
+    args[2] = shmid_ship_str;
+   
+    
 
     for(i=0; i < SO_PORTI; i++) {
         pid_t pid = fork(); 
