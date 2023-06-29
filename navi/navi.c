@@ -45,9 +45,8 @@ int main(int argc, char **argv) {
     // parte la simulazione 
 
     while (checkEconomy()) {
-        
-        trovaPortoPiuVicinoConOfferta();
-        trovaPortoConRichiestaEquivalente();
+
+        findPorts(shipList[shipIndex]); 
 
         // Verifica se c'è una banchina libera
         struct sembuf sb;
@@ -143,8 +142,6 @@ void initShip(ship* shipList) {
    
 }
 
-// da rivedere 
-
 
 double distance(coordinate* positionX, coordinate* positionY) {
     // ritorna la distanza tra porto e nave tramite la formula della distanza Euclidea
@@ -154,7 +151,7 @@ double distance(coordinate* positionX, coordinate* positionY) {
     return sqrt(dx * dx + dy * dy); 
 }
 
-void moveToPort(ship* ship, port* destination, char type) {
+void moveToPort(ship* ship, char type) {
     
     double dist; 
     double travelTime; 
@@ -170,6 +167,12 @@ void moveToPort(ship* ship, port* destination, char type) {
 
     ship->position->x = destination->position->x; 
     ship->position->y = destination->position->y; 
+    
+    if (type == 'o') {
+        
+    } else if (type == 'r') {
+
+    }
 
     // carico o scarico 
 
@@ -217,62 +220,108 @@ int checkEconomy() {
     return res;  
 }
 
-
-
-port* trovaPortoPiuVicinoConOfferta(ship* nave, port* porti) {
-
-    database* db = (database*)shmat(atoi(argv[2]), NULL, 0); 
-    port portList; 
+int findPorts(ship* shipList) {
+     
+    port portList;  // puntatore si o no? ainz 
+    good* offer; 
+    lot* lots; 
     double distanzaMinima = -1;
-    port* portoPiuVicino = NULL;
-
-    for (int i = 0; i < SO_PORTI; i++) {
-        portList = (port)shmat(db[i]->keyPortMemory, NULL, 0);
-
-        if (portList.inventory.offer != NULL && portList.inventory.offer->amount > 0) {
-            double distanza = distance(nave->position, portList.position);
-
-            if (distanzaMinima == -1 || distanza < distanzaMinima) {
-                distanzaMinima = distanza;
-                portoPiuVicino = portList;
-            }
-        }
-    }
-
-    return portoPiuVicino;
-}
-
-port* trovaPortoConRichiestaEquivalente(port* porti, port* portoOfferta, ship* ship) {
-
+    int nearestPortKey = NULL;
+    int port[SO_PORTI]; 
+    int j = 0; 
+    int i; 
+    int k; 
+    int offerCounter; 
+    int findPorts = 0; 
     database* db = (database*)shmat(atoi(argv[2]), NULL, 0); 
-    port portList; 
-    
-    for (int i = 0; i < SO_PORTI; i++) {
-        portList = (port)shmat(db[i]->keyPortMemory, NULL, 0);
 
-            if (portList != portoOfferta && portList.inventory.request != NULL) {
-                // Verifica se il porto richiede uno dei tipi di merce offerti da portoOfferta
-                good* richiesta = portList.inventory.request;
-                good* offerta = portoOfferta->inventory.offer;
+    while (!findPorts) {
+        for (i = 0; i < SO_PORTI; i++) {
+            int found = 0; 
+            for (k = 0; k < j && !found; k++) {
+                if (i == port[k]) {
+                    found = 1; 
+                }
+            }
+            if (!found) {
+                double distanza = distance(shipList->position, db[i].position);
 
-                while (offerta != NULL) {
-                    if (richiesta->idGood == offerta->idGood) {
-                        // Blocca la richiesta nel porto trovato
-                        richiesta->lots->id_ship = ship->pid;
-
-                        // Prenota il lotto in portoOfferta
-                        offerta->lots->id_ship = ship->pid ;
-
-                        return &portList;
-                    }
-
-                    offerta = offerta->next;
+                if (distanzaMinima == -1 || distanza < distanzaMinima) {
+                    distanzaMinima = distanza;
+                    nearestPortKey = db[i].keyPortMemory;
+                    port[j] = i; 
+                }
+            }
+        
+        }
+        portList = (port)shmat(nearestPortKey, NULL, 0);
+        offer = portList->inventory.offer;
+        int idGood = -1; 
+        
+        while (offer != NULL && !findPorts) {
+            lots = offer->lots; 
+            while(lots != NULL && idGood == -1) {
+                if (lots->id_ship != -1 && lots->available != 0) {
+                    idGood = offer->idGood; 
+                } else {
+                    lots++; 
+                }
+            }
+            if (idGood != -1) {
+                if (findRequestPort(idGood, db, shipList)) {
+                    findPorts = 1; 
+                    break; 
+                } else {
+                    idGood = -1; 
+                    offer++; // passa alla prossima offerta; 
                 }
             }
         }
 
-    return NULL; // Nessun porto con richiesta equivalente trovato
+        if (!findPorts) {
+            j++; 
+        } 
+    }
+
+    if (findPorts) {
+        shipList->keyOffer = nearestPortKey; 
+        lots->id_ship = shipList->pid; 
+    }
+
+    if (shmdt(portList) == -1) {
+        perror("shmdt: portList -> findPorts"); 
+        exit(EXIT_FAILURE); 
+    }
+
+    if (shmdt(db) == -1) {
+        perror("shmdt: db -> findPorts"); 
+        exit(EXIT_FAILURE); 
+    }
+
+    return findPorts; 
 }
+
+int findRequestPort(int idGood,  database* db, ship* shipList) {
+    int i; 
+    port* portList; 
+    int found; 
+
+    found = 0; 
+    for (i = 0; i < SO_PORTI && !found; i++) {
+        portList = (port)shmat(db[i].keyPortMemory, NULL, 0);
+        if (portList->inventory.request->idGood == idGood && portList->inventory.request->remains != 0 &&  portList->inventory.request->requestBooked == 0) {
+            found = 1; 
+        } 
+        if (found) {
+            shipList->keyRequest = db[i].keyPortMemory; 
+            portList->inventory.request->requestBooked = 1; 
+            if (shmdt(portList) == -1) {
+                perror("shmdt: ship -> findRequestPort"); 
+                exit(EXIT_FAILURE); 
+            }
+        }
+    }
+} 
 
 
 /* SPIEGAZIONE trovaPortoConRichiestaEquivalente: utilizziamo un ciclo while per confrontare ogni tipo di merce offerta da portoOfferta con la richiesta 

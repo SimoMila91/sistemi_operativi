@@ -13,6 +13,8 @@ typedef struct {
 typedef struct {
     int idGood; // tipo di merce 
     double amount; // quantità merce 
+    double remains; // solo per la request 
+    int requestBooked; //solo per la request
     int life;   // tempo di vita misurato in giorni 
     lot *lots; 
 } good; 
@@ -33,8 +35,14 @@ typedef struct {
     int pid; 
     coordinate* position;
     good *listGoods; 
-    //double totalCargo; //decrementa/incrementa ogni volta che carico/scarico una merce
+    int keyOffer; 
+    int keyRequest; 
 } ship;
+
+typedef struct {
+    int keyPortMemory; 
+    coordinate* position; 
+} database; 
 
 typedef struct {
     int shipWithCargo; 

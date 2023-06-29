@@ -150,7 +150,8 @@ void initializeInventory(port portList, double totalOffer, double totalRequest) 
     numGoodRequest = rand() % SO_MERCI + 1; 
     portList->inventory.request = (good*)malloc(1 * sizeof(good)); 
     portList->inventory.request[0].idGood = numGoodRequest; 
-    portList->inventory.request[0].amount = totalRequest; 
+    portList->inventory.request[0].amount = totalRequest;  // [0] da mettere? DIO ESISTE? per Stefano
+    portList.inventory.request->requestBooked = 0; 
 
     //inizializzo l'offerta 
     counterGoodsOffer = rand() % SO_MERCI + 1; // ad esempio 3 tipi di merce 
