@@ -10,8 +10,8 @@ int SO_SPEED;
 double SO_LATO; 
 int SO_PORTI;  
 
-ship* shipList; 
-
+ship* shipList; //se puntatore freccia se è struttura . 
+database* db;
 int main(int argc, char **argv) {
 
     int handleSimulationState; 
@@ -21,26 +21,18 @@ int main(int argc, char **argv) {
     int semId = atoi(argv[5]); 
     shipList = (ship*)shmat(atoi(argv[3]), NULL, 0); 
     int shipIndex = atoi(argv[1]);  
+    db = (database*)shmat(atoi(argv[2]), NULL, 0); 
     initShip(shipList[shipIndex]); 
 
     struct sembuf sb; 
-    sb.sem_num = 0; 
-    sb.sem_op = -1; 
-    sb.sem_flg = 0; 
+    bzero(&sb, sizeof(struct sembuf ));
+    decreaseSem(sb, semId, 0);
 
-    if (semop(semId, &sb, 1) == -1) {
-        perror("semop ship"); 
-        exit("EXIT FAILURE"); 
-    }
+    TEST_ERROR;
 
-    sb.sem_num = 0; 
-    sb.sem_op = 0; 
-    sb.sem_flg = 0; 
+    waitForZero(sb, semId, 0);
     
-    if (semop(semId, &sb, 1) == -1) {
-        perror("semop ship"); 
-        exit("EXIT FAILURE"); 
-    }
+    TEST_ERROR;
 
     // parte la simulazione 
 
@@ -48,73 +40,6 @@ int main(int argc, char **argv) {
 
         findPorts(shipList[shipIndex]); 
 
-        // Verifica se c'è una banchina libera
-        struct sembuf sb;
-        sb.sem_num = sem_docks_id;  // Indice del semaforo delle banchine
-        sb.sem_op = 0;             // Controllo se il valore del semaforo è 0
-        sb.sem_flg = IPC_NOWAIT;   // Non bloccare il processo
-
-        int semStatus = semop(sem_id, &sb, 1);
-        if (semStatus == -1) {
-            if (errno == EAGAIN) {
-                // Non ci sono banchine libere, la nave deve attendere
-                sb.sem_op = -1;  // Decremento del semaforo di 1 (blocco la nave)
-                sb.sem_flg = 0;
-                semop(sem_id, &sb, 1);
-                // La nave attende finché non c'è una banchina libera
-            } else {
-                // Errore nell'accesso al semaforo delle banchine
-                perror("Errore nell'accesso al semaforo delle banchine");
-                // Gestisci il caso appropriato
-            }
-        } else {
-            // C'è una banchina libera, prenotala
-            sb.sem_op = -1;  // Decremento del semaforo di 1 (prenotazione della banchina)
-            sb.sem_flg = 0;
-            semop(sem_id, &sb, 1);
-
-            // Sposta la nave verso il portoOfferta
-            moveToPort(shipList[shipIndex], portoOfferta, 'O');
-            // Dopo il movimento, puoi eseguire altre azioni necessarie o procedere con lo scarico o il caricamento
-        }
-
-                // Carica il lotto prenotato
-        caricaLotto(&shipList[shipIndex], portoOfferta->inventory.offer[dockIndex].lots);
-
-        // Attendi finché non c'è una banchina libera nel porto della richiesta
-        while (1) {
-            int semStatus = semop(sem_docks_id_richiesta, &sb_richiesta, 1);
-            if (semStatus == -1) {
-                if (errno == EAGAIN) {
-                    // Non ci sono banchine libere nel porto della richiesta, la nave deve attendere
-                    continue;
-                } else {
-                    // Errore nell'accesso al semaforo delle banchine del porto della richiesta
-                    perror("Errore nell'accesso al semaforo delle banchine del porto della richiesta");
-                }
-            } else {
-                // C'è una banchina libera nel porto della richiesta, prenotala
-                sb_richiesta.sem_op = -1;  // Decremento del semaforo di 1 (prenotazione della banchina nel porto della richiesta)
-                sb_richiesta.sem_flg = 0;
-                semop(sem_docks_id_richiesta, &sb_richiesta, 1);
-                break;
-            }
-        }
-
-        // Sposta la nave verso il porto della richiesta
-        moveToPort(&shipList[shipIndex], portoRichiesta, 'R');
-
-        // Rilascia la banchina nel portoOfferta
-        sb.sem_op = 1;  // Incremento del semaforo di 1 (rilascio della banchina in portoOfferta)
-        semop(sem_docks_id, &sb, 1);
-
-
-
-
-        moveToPort();
-        ------> libero semaforo 
-        moveToPort();
-        scaricalotto(); /////////// --- > 
 
     } 
 
@@ -123,7 +48,7 @@ int main(int argc, char **argv) {
     // ripeto tutto 
  
     // Scollega il segmento di memoria condiviso
-
+    shmdt(db);
     exit(EXIT_SUCCESS); // Termina il processo figlio
 
 }
@@ -132,6 +57,8 @@ void initShip(ship* shipList) {
             
     // Inizializza i campi della struttura nave
     shipList->pid = getpid();
+    shipList->keyOffer = -1;
+    shipList->keyRequest = -1; 
     
     // Genera coordinate casuali sulla mappa
     shipList->position = (coordinate*)malloc(sizeof(coordinate));
@@ -151,12 +78,12 @@ double distance(coordinate* positionX, coordinate* positionY) {
     return sqrt(dx * dx + dy * dy); 
 }
 
-void moveToPort(ship* ship, char type) {
+void moveToPort(char type, lot* lots) {
     
     double dist; 
     double travelTime; 
-
-    dist = distance(ship->position, destination->position); 
+    if (type == 'o') {
+    dist = distance(shipList->position, db[shipList->keyOffer].position); 
     travelTime = dist / SO_SPEED; 
 
     struct timespec sleepTime; 
@@ -165,18 +92,20 @@ void moveToPort(ship* ship, char type) {
 
     nanosleep(&sleepTime, NULL); 
 
-    ship->position->x = destination->position->x; 
-    ship->position->y = destination->position->y; 
-    
-    if (type == 'o') {
-        
+    ship->position->x = db[shipList->keyOffer].position->x; 
+    ship->position->y = db[shipList->keyOffer].position->y;  
+    caricaLotto(lots);
+
     } else if (type == 'r') {
 
     }
 
+    
+  
+
     // carico o scarico 
 
-    // aggiungere sincronizzazione
+
 
 }
 
@@ -184,33 +113,39 @@ int checkEconomy() {
     
     int i; 
     int j; 
+    int k;
     int foundRequest = 0; 
     int res; 
     good* currentOffer; 
-    database* db = (database*)shmat(atoi(argv[2]), NULL, 0); 
     port portList; 
-
+    struct sembuf sb; 
+    bzero(&sb, sizeof(struct sembuf ));
     
     for (i = 0; i < SO_PORTI && !res; i++) {
-        portList = (port)shmat(db->keyPortMemory, NULL, 0); 
-
-        if (portList.inventory.request[0].lots->available) {
-            foundRequest = portList.inventory.request[0]->idGood; ///////????????
-        } 
-        int found = 0; 
+        portList = (port)shmat(db[i].keyPortMemory, NULL, 0); 
+        decreaseSem(sb, portList.sem_inventory_id, 0 );
+        if (portList.inventory.request.lots->available) {
+            foundRequest = portList.inventory.request.idGood; 
+        }   
+        increaseSem(sb, portList.sem_inventory_id, 0);
+        int found = 0;  
         for (j = 0; j < SO_PORTI && !found; j++) {
-            currentOffer = portList.inventory.offer; 
-
-            while (currentOffer != NULL && !found) {
-                if (currentOffer->lots->available && currentOffer->idGood == foundRequest) {
-                    found = 1; 
+            currentOffer = (port)shmat(db[i].keyPortMemory, NULL, 1);  
+            decreaseSem(sb, portList.sem_inventory_id, 0 );
+            for(k = 0; k < portList.inventory.counterGoodsOffer &&  !found; k++ ){
+                for(l = 0; l < portList.inventory.offer->maxLoots && !found; l++){
+                    if (currentOffer[k].lots[l].available && currentOffer->idGood == foundRequest) {
+                        found = 1; 
+                    }   
                 }
+                
             }
-
+            increaseSem(sb, portList.sem_inventory_id, 1);
+            shmdt(currentOffer); TEST_ERROR; 
         }
         
         res = found;
-
+        shmdt(portList); TEST_ERROR; 
     }
     if (shmdt(portList) == -1) {
         perror("shmdt: ship -> checkEconomy"); 
@@ -221,24 +156,28 @@ int checkEconomy() {
 }
 
 int findPorts(ship* shipList) {
-     
+
     port portList;  // puntatore si o no? ainz 
     good* offer; 
     lot* lots; 
     double distanzaMinima = -1;
-    int nearestPortKey = NULL;
+    int nearestPort_index;
     int port[SO_PORTI]; 
     int j = 0; 
     int i; 
     int k; 
+    int c;
     int offerCounter; 
     int findPorts = 0; 
-    database* db = (database*)shmat(atoi(argv[2]), NULL, 0); 
+    int idGood = -1; 
+    lot* finalLot = NULL;
+    struct sembuf sb; 
+    bzero(&sb, sizeof(struct sembuf ));
 
     while (!findPorts) {
         for (i = 0; i < SO_PORTI; i++) {
             int found = 0; 
-            for (k = 0; k < j && !found; k++) {
+            for (k = 0; k < j && !found; k++) { //////
                 if (i == port[k]) {
                     found = 1; 
                 }
@@ -248,28 +187,29 @@ int findPorts(ship* shipList) {
 
                 if (distanzaMinima == -1 || distanza < distanzaMinima) {
                     distanzaMinima = distanza;
-                    nearestPortKey = db[i].keyPortMemory;
+                    nearestPort_index = i;
                     port[j] = i; 
                 }
             }
         
         }
-        portList = (port)shmat(nearestPortKey, NULL, 0);
+        portList = (port)shmat(db[nearestPort_index].keyPortMemory, NULL, 0); TEST_ERROR; 
         offer = portList->inventory.offer;
-        int idGood = -1; 
-        
-        while (offer != NULL && !findPorts) {
-            lots = offer->lots; 
-            while(lots != NULL && idGood == -1) {
-                if (lots->id_ship != -1 && lots->available != 0) {
-                    idGood = offer->idGood; 
-                } else {
-                    lots++; 
+       
+        for(i = 0; i < portList.inventory.counterGoodsOffer && !findPorts; i++){
+            lots = offer[i].lots; 
+
+            for(c = 0; c < portList.inventory.offer[i].maxLoots && idGood == -1) {
+                decreaseSem(sb, portList.sem_inventory_id, 1);
+                if ( lots[c].available != 0 && lots[c].id_ship != -1 ) {
+                    idGood = offer[i].idGood; 
+                    finalLot = &lots[c];
                 }
+                increaseSem(sb, portList.sem_inventory_id, 1);
             }
             if (idGood != -1) {
-                if (findRequestPort(idGood, db, shipList)) {
-                    findPorts = 1; 
+                if (findRequestPort(idGood, finalLot)) {
+                    findPorts = 1;  
                     break; 
                 } else {
                     idGood = -1; 
@@ -280,46 +220,41 @@ int findPorts(ship* shipList) {
 
         if (!findPorts) {
             j++; 
-        } 
+        }
+        shmdt(portList);
+        TEST_ERROR;
     }
 
     if (findPorts) {
-        shipList->keyOffer = nearestPortKey; 
-        lots->id_ship = shipList->pid; 
+        shipList->keyOffer = nearestPort_index; 
+        finalLot->id_ship = shipList->pid; 
     }
 
-    if (shmdt(portList) == -1) {
-        perror("shmdt: portList -> findPorts"); 
-        exit(EXIT_FAILURE); 
-    }
-
-    if (shmdt(db) == -1) {
-        perror("shmdt: db -> findPorts"); 
-        exit(EXIT_FAILURE); 
-    }
 
     return findPorts; 
 }
 
-int findRequestPort(int idGood,  database* db, ship* shipList) {
+int findRequestPort(int idGood, lot* lots) {
     int i; 
     port* portList; 
     int found; 
+    
 
     found = 0; 
     for (i = 0; i < SO_PORTI && !found; i++) {
-        portList = (port)shmat(db[i].keyPortMemory, NULL, 0);
-        if (portList->inventory.request->idGood == idGood && portList->inventory.request->remains != 0 &&  portList->inventory.request->requestBooked == 0) {
+        portList = (port)shmat(db[i].keyPortMemory, NULL, 0); TEST_ERROR;
+        decreaseSem(sb, portList.sem_inventory_id, 0);
+        if (portList->inventory.request->idGood == idGood && (portList->inventory.request->remains - portList->inventory.request->requestBooked ) > 0) {
             found = 1; 
         } 
+        increaseSem(sb, portList.sem_inventory_id, 0);
         if (found) {
-            shipList->keyRequest = db[i].keyPortMemory; 
-            portList->inventory.request->requestBooked = 1; 
-            if (shmdt(portList) == -1) {
-                perror("shmdt: ship -> findRequestPort"); 
-                exit(EXIT_FAILURE); 
-            }
+            decreaseSem(sb, portList.sem_inventory_id, 0);
+            shipList->keyRequest = i; 
+            portList->inventory.request->requestBooked += lots->value; 
+            increaseSem(sb, portList.sem_inventory_id, 0);
         }
+        shmdt(portList); TEST_ERROR; 
     }
 } 
 
@@ -331,26 +266,52 @@ con il porto successivo fino a quando non viene trovato un porto con una richies
 equivalente viene trovato, restituiamo NULL*/
 
 
-void caricaLotto(ship* ship, port* portoOfferta ) {
+void caricaLotto(lot* lots ) {
 
-    double quantita = lotto->amount;
+    double quantita = lots->value;
     double tempoCaricamento = quantita / SO_SPEED;
     int i;
-    good* listGoods = ship->listGoods;
-    lot* 
+    good listGoods = shipList->listGoods;
     struct timespec sleepTime;
     sleepTime.tv_sec = (int)tempoCaricamento;
     sleepTime.tv_nsec = (tempoCaricamento - (int)tempoCaricamento) * 1e9;
 
-    nanosleep(&sleepTime, NULL);
+    nanosleep(&sleepTime, NULL); TEST_ERROR;
 
-    while()
-    for (i = 0; i < MAX_GOODS; i++) {
-        if (ship->listGoods[i].idGood == lotto->idGood) {
+
+        if (shipList->listGoods.idGood == lotto->idGood) {
             // Aggiorna la quantità della merce sulla nave
             nave->listGoods[i].amount += lotto->amount;
             break;
         }
     }
+
+
+
+void decreaseSem (struct sembuf sops, int sem_id, int sem_num){
+    sops.sem_num = sem_num;
+    sops.sem_op = -1; 
+    sops.sem_flg = 0; 
+
+    semop(sem_id, sops, 1); 
+    TEST_ERROR;
 }
 
+void increaseSem (struct sembuf sops, int sem_id, int sem_num){
+    sops.sem_num = sem_num;
+    sops.sem_op = 1; 
+    sops.sem_flg = 0; 
+
+    semop(sem_id, sops, 1); 
+    TEST_ERROR;
+}
+
+
+void waitForZero (struct sembuf sops, int sem_id, int sem_num){
+    sops.sem_num = sem_num;
+    sops.sem_op = 0; 
+    sops.sem_flg = 0; 
+
+    semop(sem_id, sops, 1); 
+    TEST_ERROR;
+}

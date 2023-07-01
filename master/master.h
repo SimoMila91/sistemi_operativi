@@ -17,11 +17,13 @@ typedef struct {
     int requestBooked; //solo per la request
     int life;   // tempo di vita misurato in giorni 
     lot *lots; 
+    int maxLoots;
 } good; 
 
 typedef struct { 
-    good *request;
+    good request;
     good *offer; 
+    int counterGoodsOffer; /// quanti tipi di merce offro
 } warehouse; 
 
 typedef struct {
@@ -29,12 +31,13 @@ typedef struct {
     coordinate* position; 
     warehouse inventory; 
     int sem_docks_id; 
+    int sem_inventory_id;
 } port; 
 
 typedef struct {
     int pid; 
     coordinate* position;
-    good *listGoods; 
+    good listGoods; 
     int keyOffer; 
     int keyRequest; 
 } ship;

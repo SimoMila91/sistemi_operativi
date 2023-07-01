@@ -36,6 +36,11 @@ int main(int argc, char **argv) {
     // creo la memoria condivisa per il porto 
     shmid_port = createSharedMemory(sizeof(port) * 1); 
     portList = (port)shmat(shmid_database, NULL, 0); 
+    portList.sem_inventory_id = semget(IPC_PRIVATE, 2, IPC_CREAT | 0600);
+    semctl(portList.sem_inventory_id, 0, SETVAL, 1); //richiesta
+    TEST_ERROR;
+    semctl(portList.sem_inventory_id, 1, SETVAL, 1); //offerta
+    TEST_ERROR; 
 
     myData[index].keyPortMemory = shmid_port; 
    
@@ -65,7 +70,7 @@ void initPort(int i, port portList, double totalOffer, double totalRequest, int 
     int numRequest; 
     int numOffer; 
 
-    portList->position = (coordinate*)malloc(sizeof(coordinate)); 
+    portList.position = (coordinate*)malloc(sizeof(coordinate)); 
     myData.position = (coordinate*)malloc(sizeof(coordinate));
 
     switch (i) {
@@ -97,8 +102,8 @@ void initPort(int i, port portList, double totalOffer, double totalRequest, int 
 
     myData[index].position = portList.position;
     
-    portList->pid = getpid(); 
-    portList->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
+    portList.pid = getpid(); 
+    portList.sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
     initDocksSemaphore(portList); // inizializzo il semaforo
     initializeInventory(portList, totalOffer, totalRequest); 
 
@@ -145,20 +150,22 @@ void initializeInventory(port portList, double totalOffer, double totalRequest) 
     int lifeTime;  
     int counterGoodsOffer; 
     int found; // tipo merce
+   double casualAmountOffer[counterGoodsOffer]; 
 
     // inizializzo la richiesta 
     numGoodRequest = rand() % SO_MERCI + 1; 
-    portList->inventory.request = (good*)malloc(1 * sizeof(good)); 
-    portList->inventory.request[0].idGood = numGoodRequest; 
-    portList->inventory.request[0].amount = totalRequest;  // [0] da mettere? DIO ESISTE? per Stefano
-    portList.inventory.request->requestBooked = 0; 
+    portList.inventory.request = (good*)malloc(1 * sizeof(good)); 
+    portList.inventory.request.idGood = numGoodRequest; 
+    portList.inventory.request.amount = totalRequest;  
+    portList.inventory.request.requestBooked = 0; 
 
     //inizializzo l'offerta 
     counterGoodsOffer = rand() % SO_MERCI + 1; // ad esempio 3 tipi di merce 
-    double casualAmountOffer[counterGoodsOffer]; 
+    portList.inventory.counterGoodsOffer = counterGoodsOffer;
+ 
     getCasualWeight(casualAmountOffer, counterGoodsOffer, totalOffer); 
 
-    portList->inventory.offer = (good*)malloc(counterGoodsOffer * sizeof(good)); 
+    portList.inventory.offer = (good*)malloc(counterGoodsOffer * sizeof(good)); 
 
     for (j = 0; j < counterGoodsOffer; j++) {
 
@@ -167,16 +174,16 @@ void initializeInventory(port portList, double totalOffer, double totalRequest) 
             found = rand() % SO_MERCI + 1; 
         } 
 
-        portList->inventory.offer[j].idGood = found; 
-        portList->inventory.offer[j].amount = casualAmountOffer[j]; 
+        portList.inventory.offer[j].idGood = found; 
+        portList.inventory.offer[j].amount = casualAmountOffer[j]; 
         
-        portList->inventory.offer[j].lootSize = createLoot(casualAmountOffer[j]); 
+        portList.inventory.offer[j].lootSize = createLoot(casualAmountOffer[j], j); 
         lifeTime = rand() % (SO_MAX_VITA + 1 - SO_MIN_VITA) + SO_MIN_VITA;
-        portList->inventory.offer[j].life = lifeTime;          
+        portList.inventory.offer[j].life = lifeTime;          
     }
 }
 
-lot* createLoots(double amount) {
+lot* createLoots(double amount, int index) {
 
     int i = 0; 
     int maxLoots; 
@@ -190,6 +197,7 @@ lot* createLoots(double amount) {
     }
 
     maxLoots = amount / lotSize + 1; 
+    portList.inventory.offer[index].maxLoots = maxLoots;
     lots = (double*)malloc(maxLoots * sizeof(lot)); 
 
     for (i; i < maxLoots-1; i++) {
@@ -198,6 +206,7 @@ lot* createLoots(double amount) {
         lots[i].type = 0; 
         lots[i].booked = 1; 
         carico -= lotSize; 
+        lots[i].id_ship = -1;
     }
 
     lots[maxLoots-1].value = carico; 
