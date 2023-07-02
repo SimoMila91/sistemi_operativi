@@ -1,9 +1,17 @@
-void initPort(int i, port* portList, double totalOffer, double totalRequest, int semId)
+void initPort(int i, double totalOffer, double totalRequest, int semId);
 
-double distance(coordinate* positionX, coordinate* positionY)
+double distance(coordinate* positionX, coordinate* positionY);
 
-int isDuplicate(int numGood, int numRequest, int numOffer, char type)
+int isDuplicate(int numGood, int numOffer);
 
-void initializeInventory(port* portList, int numRequest, int numOffer)
+void initializeInventory(double totalOffer, double totalRequest);
 
-void initDocksSemaphore(port* portList)
+void initDocksSemaphore();
+
+lot* createLoots(double amount, int index);
+
+void getCasualWeightPort(double offer[], int counter, double totalOffer);
+
+int createSharedMemory(size_t size);
+
+void init_var_port();

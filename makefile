@@ -1,31 +1,22 @@
 CC = gcc
-CFLAGS = -Wall -Wextra
+CFLAGS = -pedantic -Wall -Wextra 
 
 all: navi porti master
+	$(CC) $(CFLAGS) -o master navi/navi.o porti/porti.o master/master.o
+navi: 
+	$(CC) $(CFLAGS) -c navi/navi.c -o navi/navi.o
 
-navi: navi.o
-	$(CC) $(CFLAGS) -o navi navi.o
+porti: 
+	$(CC) $(CFLAGS) -c porti/porti.c -o porti/porti.o
 
-porti: porti.o
-	$(CC) $(CFLAGS) -o porti porti.o
-
-master: master.o
-	$(CC) $(CFLAGS) -o master master.o
-
-navi.o: navi/navi.c
-	$(CC) $(CFLAGS) -c navi/navi.c
-
-porti.o: porti/porti.c
-	$(CC) $(CFLAGS) -c porti/porti.c
-
-master.o: master/master.c
-	$(CC) $(CFLAGS) -c master/master.c
+master: 
+	$(CC) $(CFLAGS) -c master/master.c -o master/master.o
 
 clean:
 	rm -f navi porti master *.o
 
 run: all 
-  ./master
+	./master
 
 log: all
 	./master > log.txt

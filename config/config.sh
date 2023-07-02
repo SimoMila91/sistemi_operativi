@@ -9,9 +9,9 @@ export SO_MIN_VITA=3
 # Max number of goood's life
 export SO_MAX_VITA=20
 # Map 
-export SO_LATO=10000.0
+export SO_LATO=10000
 # Ship's speed 
-export SO_SPEED=1000.0
+export SO_SPEED=1000
 # Max ship's capacity
 export SO_CAPACITY=1000
 # Max number of docks 

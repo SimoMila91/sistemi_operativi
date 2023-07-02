@@ -63,11 +63,13 @@ typedef struct {
 
 } report; 
 
-int init_var(); 
 
 void getCasualWeight(double* offer);
 
-int createSharedMemory(size_t size);
+void alarmHandler(int signum) ;
+
+int checkEconomy();
+
 
 
 

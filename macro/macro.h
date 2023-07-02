@@ -1,7 +1,7 @@
 #define TEST_ERROR    if (errno && errno != EINTR) {fprintf(stderr, \
 					  "\x1b[31m%s at line %d: PID=%5d, Error %d: %s\n\x1b[37m", \
-					  _FILE_,			\
-					  _LINE_,			\
+					  __FILE__,			\
+					  __LINE__,			\
 					  getpid(),			\
 					  errno,			\
 					  strerror(errno)); \

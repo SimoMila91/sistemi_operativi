@@ -7,18 +7,22 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <unistd.h>
-#include "master.h"
+#include <errno.h>
+#include <string.h>
 #include "../macro/macro.h"
+#include "master.h"
+#include "../navi/navi.h"
 
 int SO_PORTI; 
 int SO_NAVI;  
-double SO_LATO;  
+int SO_LATO;  
 int SO_BANCHINE; 
 int SO_MERCI; 
 int SO_SIZE; 
 int SO_MAX_VITA; 
 int SO_MIN_VITA; 
 int SO_FILL; 
+int SO_DAYS;
 
 // port's variables 
 int shmid_port; 
@@ -30,24 +34,31 @@ ship* shipList;
 
 int daysRemains; 
 
-int main(int argc, char **argv) {
-
-    init_var();  // initialize of variables 
+int main() {
+ 
+    SO_PORTI = atoi(getenv("SO_PORTI")); 
+    SO_NAVI = atoi(getenv("SO_NAVI")); 
+    SO_LATO = atoi(getenv("SO_LATO")); 
+    SO_BANCHINE = atoi(getenv("SO_BANCHINE")); 
+    SO_MERCI = atoi(getenv("SO_MERCI")); 
+    SO_SIZE = atoi(getenv("SO_SIZE")); 
+    SO_MAX_VITA = atoi(getenv("SO_MAX_VITA")); 
+    SO_MIN_VITA = atoi(getenv("SO_MIN_VITA")); 
+    SO_FILL = atoi(getenv("SO_FILL")); 
+    SO_DAYS = atoi(getenv("SO_DAYS"));
     int i;
     char* args[6];
-    char* idx_port[3*sizeof(int)+1];
-    char* idx_ship[3*sizeof(int)+1];
-    char* shmid_port_str[3*sizeof(int)+1]; 
-    char* shmid_ship_str[3*sizeof(int)+1];
-    char* valueTotalOffer[3*sizeof(double)+1]; 
-    char* valueTotalRequest[3*sizeof(double)+1]; 
-    char* keySemMaster[3*sizeof(int)+1]; 
+    char idx_port[3*sizeof(int)+1];
+    char idx_ship[3*sizeof(int)+1];
+    char shmid_port_str[3*sizeof(int)+1]; 
+    char shmid_ship_str[3*sizeof(int)+1];
+    char valueTotalOffer[3*sizeof(double)+1]; 
+    char valueTotalRequest[3*sizeof(double)+1]; 
+    char keySemMaster[3*sizeof(int)+1]; 
     double offerArray[SO_PORTI]; 
     double requestArray[SO_PORTI]; 
-    int memoryKeys[SO_PORTI]; 
-    int memoryKeysLength = sizeof(memoryKeys) / sizeof(int); 
     int semStartSimulation =  semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo
-    daysRemains = SO_DAYS; 
+    daysRemains = SO_DAYS;
     signal(SIGALRM, alarmHandler);
 
     if (semStartSimulation == -1) {
@@ -69,8 +80,8 @@ int main(int argc, char **argv) {
     args[0] = "porti";
 
    
-    int shmid_port = createSharedMemory(sizeof(database) * SO_PORTI); 
-    portList = (port*)shmat(shmid_port, NULL, 0); 
+    int shmid_port = shmget(IPC_PRIVATE, sizeof(database) * SO_PORTI, 0600|IPC_CREAT); TEST_ERROR;
+    portList = shmat(shmid_port, NULL, 0); TEST_ERROR; 
     sprintf(shmid_port_str, "%d", shmid_port); 
     args[2] = shmid_ship_str;
    
@@ -92,7 +103,7 @@ int main(int argc, char **argv) {
             args[3] = valueTotalOffer; 
             args[4] = valueTotalRequest;  
             execv("../porti/porti.c", args);
-            TEST ERROR;
+            TEST_ERROR;
             exit(EXIT_FAILURE);
         default:
             //padre 
@@ -104,8 +115,8 @@ int main(int argc, char **argv) {
 
     args[0] = "navi";
 
-    shmid_nave = createSharedMemory(sizeof(port) * SO_NAVI); 
-    shipList = (port*)shmat(shmid_ship, NULL, 0); 
+    shmid_ship = shmget(IPC_PRIVATE, sizeof(ship) * SO_NAVI, 0600|IPC_CREAT); TEST_ERROR; 
+    shipList = shmat(shmid_ship, NULL, 0); 
     sprintf(shmid_ship_str, "%d", shmid_ship);
     args[3] = shmid_ship_str;
 
@@ -121,7 +132,7 @@ int main(int argc, char **argv) {
             sprintf(idx_ship, "%d", i);
             args[1] = idx_ship; 
             execv("../navi/navi.c", args);
-            TEST ERROR;
+            TEST_ERROR;
             exit(EXIT_FAILURE);
         default:
             //padre 
@@ -134,18 +145,18 @@ int main(int argc, char **argv) {
     sb.sem_op = -1; 
     sb.sem_flg = 0; 
 
-    if (semop(semId, &sb, 1) == -1) {
+    if (semop(semStartSimulation, &sb, 1) == -1) {
         perror("semop porto"); 
-        exit("EXIT FAILURE"); 
+        exit(EXIT_FAILURE); 
     }
 
     sb.sem_num = 0; 
     sb.sem_op = 0; 
     sb.sem_flg = 0; 
     
-    if (semop(semId, &sb, 1) == -1) {
+    if (semop(semStartSimulation, &sb, 1) == -1) {
         perror("semop porto"); 
-        exit("EXIT FAILURE"); 
+        exit(EXIT_FAILURE); 
     }
 
 
@@ -159,7 +170,7 @@ int main(int argc, char **argv) {
 }
 
 void alarmHandler(int signum) {
-
+    printf("%d", signum); /*da cancellare*/
     daysRemains--; 
     
     if (daysRemains > 0) {
@@ -168,6 +179,7 @@ void alarmHandler(int signum) {
 
 }
 
+
 int checkEconomy() {
     
     int i; 
@@ -175,38 +187,39 @@ int checkEconomy() {
     int k;
     int foundRequest = 0; 
     int res; 
+    int l;
     good* currentOffer; 
-    port portList; 
+    port* requestPort; 
     struct sembuf sb; 
     bzero(&sb, sizeof(struct sembuf ));
     
     for (i = 0; i < SO_PORTI && !res; i++) {
-        portList = (port)shmat(db[i].keyPortMemory, NULL, 0); 
-        decreaseSem(sb, portList.sem_inventory_id, 0 );
-        if (portList.inventory.request.lots->available) {
-            foundRequest = portList.inventory.request.idGood; 
+        requestPort = shmat(portList[i].keyPortMemory, NULL, 0); 
+        decreaseSem(sb, requestPort->sem_inventory_id, 0 );
+        if (requestPort->inventory.request.lots->available) {
+            foundRequest = requestPort->inventory.request.idGood; 
         }   
-        increaseSem(sb, portList.sem_inventory_id, 0);
+        increaseSem(sb, requestPort->sem_inventory_id, 0);
         int found = 0;  
         for (j = 0; j < SO_PORTI && !found; j++) {
-            currentOffer = (port)shmat(db[i].keyPortMemory, NULL, 1);  
-            decreaseSem(sb, portList.sem_inventory_id, 0 );
-            for(k = 0; k < portList.inventory.counterGoodsOffer &&  !found; k++ ){
-                for(l = 0; l < portList.inventory.offer->maxLoots && !found; l++){
+            currentOffer = shmat(portList[i].keyPortMemory, NULL, 1);  
+            decreaseSem(sb, requestPort->sem_inventory_id, 0 );
+            for(k = 0; k < requestPort->inventory.counterGoodsOffer &&  !found; k++ ){
+                for(l = 0; l < requestPort->inventory.offer->maxLoots && !found; l++){
                     if (currentOffer[k].lots[l].available && currentOffer->idGood == foundRequest) {
                         found = 1; 
                     }   
                 }
                 
             }
-            increaseSem(sb, portList.sem_inventory_id, 1);
+            increaseSem(sb, requestPort->sem_inventory_id, 1);
             shmdt(currentOffer); TEST_ERROR; 
         }
         
         res = found;
-        shmdt(portList); TEST_ERROR; 
+        shmdt(requestPort); TEST_ERROR; 
     }
-    if (shmdt(portList) == -1) {
+    if (shmdt(requestPort) == -1) {
         perror("shmdt: ship -> checkEconomy"); 
         exit(EXIT_FAILURE); 
     }
@@ -218,7 +231,7 @@ void getCasualWeight(double* offer) {
     
     int i; 
     srand(time(NULL)); 
-    double goodSum = 0.0; 
+    double sum = 0.0; 
 
     for (i = 0; i < SO_PORTI-1; i++) {
         offer[i] = (double)rand() / RAND_MAX * (SO_FILL - sum); 
@@ -229,34 +242,5 @@ void getCasualWeight(double* offer) {
 
 }
 
-int createSharedMemory(size_t size) {
 
-    int shmid; 
 
-    key_t key = ftok(".", 'S'); // genera la chiave per la memoria condivisa
-    shmid = shmget(key, size, IPC_CREAT E | 0666); // crea la memoria condivisa
-
-    if (shmid == -1) {
-        perror("shmget"); 
-        exit(EXIT_FAILURE); 
-    }
-    
-    return shmid; 
-}
-
-void init_var() {
-    if (getenv("SO_PORTI")) {
-        SO_PORTI = atoi(getenv("SO_PORTI")); 
-        SO_NAVI = atoi(getenv("SO_NAVI")); 
-        SO_LATO = atoi(getenv("SO_LATO")); 
-        SO_BANCHINE = atoi(getenv("SO_BANCHINE")); 
-        SO_MERCI = atoi(getenv("SO_MERCI")); 
-        SO_SIZE = atoi(getenv("SO_SIZE")); 
-        SO_MAX_VITA = atoi(getenv("SO_MAX_VITA")); 
-        SO_MIN_VITA = atoi(getenv("SO_MIN_VITA")); 
-        SO_FILL = atoi(getenv("SO_FILL")); 
-    } else {
-        printf("Environment variables are not initialized");
-        exit(EXIT_FAILURE); 
-    }
-}

@@ -7,49 +7,53 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <unistd.h>
-#include "../master/master.h"
+#include <errno.h>
+#include <string.h>
 #include "../macro/macro.h"
+#include "../master/master.h"
 #include "porti.h"
 
 
-double SO_LATO;  
+int SO_LATO;  
 int SO_BANCHINE; 
 int SO_MERCI; 
 int SO_SIZE; 
 int SO_MAX_VITA; 
 int SO_MIN_VITA; 
 int SO_FILL; 
-port portList;
+port* portList;
 database* myData;  
 int shmid_port; 
 
 
 int main(int argc, char **argv) {
-
+    if(argc != 6){
+        printf("error argc");
+    }
     int index = atoi(argv[1]);
     myData = (database*)shmat(atoi(argv[2]), NULL, 0); 
     double totalOffer = atoi(argv[3]); 
     double totalRequest = atoi(argv[4]); 
     int semId = atoi(argv[5]); 
-    init_var();
+    init_var_port();
 
     // creo la memoria condivisa per il porto 
     shmid_port = createSharedMemory(sizeof(port) * 1); 
-    portList = (port)shmat(shmid_database, NULL, 0); 
-    portList.sem_inventory_id = semget(IPC_PRIVATE, 2, IPC_CREAT | 0600);
-    semctl(portList.sem_inventory_id, 0, SETVAL, 1); //richiesta
+    portList = shmat(shmid_port, NULL, 0); 
+    portList->sem_inventory_id = semget(IPC_PRIVATE, 2, IPC_CREAT | 0600);
+    semctl(portList->sem_inventory_id, 0, SETVAL, 1); //richiesta
     TEST_ERROR;
-    semctl(portList.sem_inventory_id, 1, SETVAL, 1); //offerta
+    semctl(portList->sem_inventory_id, 1, SETVAL, 1); //offerta
     TEST_ERROR; 
 
     myData[index].keyPortMemory = shmid_port; 
    
-    initPort(index, portList, totalOffer, totalRequest, semId);
+    initPort(index, totalOffer, totalRequest, semId);
   
 }
 
 
-void init_var() {
+void init_var_port() {
     if (getenv("SO_PORTI")) {
         SO_LATO = atoi(getenv("SO_LATO")); 
         SO_BANCHINE = atoi(getenv("SO_BANCHINE")); 
@@ -65,47 +69,49 @@ void init_var() {
 
 
 
-void initPort(int i, port portList, double totalOffer, double totalRequest, int semId) {
+void initPort(int i, double totalOffer, double totalRequest, int semId) {
 
-    int numRequest; 
-    int numOffer; 
 
-    portList.position = (coordinate*)malloc(sizeof(coordinate)); 
-    myData.position = (coordinate*)malloc(sizeof(coordinate));
+    struct timespec t;
+
+    portList->position = (coordinate*)malloc(sizeof(coordinate*)); 
+    myData->position = (coordinate*)malloc(sizeof(coordinate*));
 
     switch (i) {
         case 0:
-            portList.position->x = 0;
-            portList.position->y = 0;
+            portList->position->x = 0;
+            portList->position->y = 0;
             break;
         case 1: 
-            portList.position->x = 0;
-            portList.position->y = SO_LATO;
+            portList->position->x = 0;
+            portList->position->y = SO_LATO;
             break;
 
         case 2 : 
-            portList.position->x = SO_LATO;
-            portList.position->y = SO_LATO;
+            portList->position->x = SO_LATO;
+            portList->position->y = SO_LATO;
             break;
 
         case 3: 
-            portList.position->x = SO_LATO;
-            portList.position->y = 0; 
+            portList->position->x = SO_LATO;
+            portList->position->y = 0; 
             break;
         
         default:
-            portList.position->x = (rand()%(SO_LATO + 1));
-            portList.position->y = (rand()%(SO_LATO + 1));
+        clock_gettime(CLOCK_REALTIME, &t);
+        portList->position->x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
+        clock_gettime(CLOCK_REALTIME, &t);
+        portList->position->x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
 
             break;
     }
 
-    myData[index].position = portList.position;
+    myData[i].position = portList->position;
     
-    portList.pid = getpid(); 
-    portList.sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
-    initDocksSemaphore(portList); // inizializzo il semaforo
-    initializeInventory(portList, totalOffer, totalRequest); 
+    portList->pid = getpid(); 
+    portList->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
+    initDocksSemaphore(); // inizializzo il semaforo
+    initializeInventory(totalOffer, totalRequest); 
 
     struct sembuf sb; 
     sb.sem_num = 0; 
@@ -114,7 +120,7 @@ void initPort(int i, port portList, double totalOffer, double totalRequest, int 
 
     if (semop(semId, &sb, 1) == -1) {   /////semId da inizializzare??? 
         perror("semop porto"); 
-        exit("EXIT FAILURE"); 
+        exit(EXIT_FAILURE); 
     }
 
     sb.sem_num = 0; 
@@ -123,19 +129,19 @@ void initPort(int i, port portList, double totalOffer, double totalRequest, int 
     
     if (semop(semId, &sb, 1) == -1) {
         perror("semop porto"); 
-        exit("EXIT FAILURE"); 
+        exit(EXIT_FAILURE); 
     }
     
 } 
 
 
-int isDuplicate(int numGood, int numOffer, port* portList) {
+int isDuplicate(int numGood, int numOffer) {
 
     int found = 0; 
     int x; 
 
     for (x = 0; x < numOffer && !found; x++) {
-        if (portList.inventory.offer[x].idGood == numGood) {
+        if (portList->inventory.offer[x].idGood == numGood) {
             found = 1; 
         }
     }
@@ -143,49 +149,49 @@ int isDuplicate(int numGood, int numOffer, port* portList) {
     return found; 
 } 
 
-void initializeInventory(port portList, double totalOffer, double totalRequest) {
+void initializeInventory(double totalOffer, double totalRequest) {
 
     int j; 
     int numGoodRequest; 
     int lifeTime;  
-    int counterGoodsOffer; 
+    int counterGoodsOffer = rand() % SO_MERCI + 1; // ad esempio 3 tipi di merce 
     int found; // tipo merce
-   double casualAmountOffer[counterGoodsOffer]; 
+    double casualAmountOffer[counterGoodsOffer]; 
 
     // inizializzo la richiesta 
     numGoodRequest = rand() % SO_MERCI + 1; 
-    portList.inventory.request = (good*)malloc(1 * sizeof(good)); 
-    portList.inventory.request.idGood = numGoodRequest; 
-    portList.inventory.request.amount = totalRequest;  
-    portList.inventory.request.requestBooked = 0; 
+    portList->inventory.request.idGood = numGoodRequest; 
+    portList->inventory.request.amount = totalRequest;  
+    portList->inventory.request.requestBooked = 0; 
 
     //inizializzo l'offerta 
-    counterGoodsOffer = rand() % SO_MERCI + 1; // ad esempio 3 tipi di merce 
-    portList.inventory.counterGoodsOffer = counterGoodsOffer;
+    
+    portList->inventory.counterGoodsOffer = counterGoodsOffer;
  
-    getCasualWeight(casualAmountOffer, counterGoodsOffer, totalOffer); 
+    getCasualWeightPort(casualAmountOffer, counterGoodsOffer, totalOffer); 
 
-    portList.inventory.offer = (good*)malloc(counterGoodsOffer * sizeof(good)); 
+    portList->inventory.offer = (good*)malloc(counterGoodsOffer * sizeof(good)); 
 
     for (j = 0; j < counterGoodsOffer; j++) {
 
         found = rand() % SO_MERCI + 1; 
-        while((j != 0 && isDuplicate(found, counterGoodsOffer, portList)) || found == numGoodRequest) {
+        while(j != 0 && (isDuplicate(found, counterGoodsOffer) || found == numGoodRequest)){
             found = rand() % SO_MERCI + 1; 
         } 
 
-        portList.inventory.offer[j].idGood = found; 
-        portList.inventory.offer[j].amount = casualAmountOffer[j]; 
+        portList->inventory.offer[j].idGood = found; 
+        portList->inventory.offer[j].amount = casualAmountOffer[j]; 
         
-        portList.inventory.offer[j].lootSize = createLoot(casualAmountOffer[j], j); 
+        portList->inventory.offer[j].lots = createLoots(casualAmountOffer[j], j); 
         lifeTime = rand() % (SO_MAX_VITA + 1 - SO_MIN_VITA) + SO_MIN_VITA;
-        portList.inventory.offer[j].life = lifeTime;          
+        portList->inventory.offer[j].life = lifeTime;          
     }
 }
 
+
 lot* createLoots(double amount, int index) {
 
-    int i = 0; 
+    int i; 
     int maxLoots; 
     lot* lots;
     double lotSize; 
@@ -197,14 +203,13 @@ lot* createLoots(double amount, int index) {
     }
 
     maxLoots = amount / lotSize + 1; 
-    portList.inventory.offer[index].maxLoots = maxLoots;
-    lots = (double*)malloc(maxLoots * sizeof(lot)); 
+    portList->inventory.offer[index].maxLoots = maxLoots;
+    lots = malloc(maxLoots * sizeof(lot)); 
 
-    for (i; i < maxLoots-1; i++) {
+    for (i = 0; i < maxLoots-1; i++) {
         lots[i].value = lotSize; 
         lots[i].available = 1; 
         lots[i].type = 0; 
-        lots[i].booked = 1; 
         carico -= lotSize; 
         lots[i].id_ship = -1;
     }
@@ -212,17 +217,16 @@ lot* createLoots(double amount, int index) {
     lots[maxLoots-1].value = carico; 
     lots[maxLoots-1].available = 1; 
     lots[maxLoots-1].type = 0; 
-    lots[maxLoots-1].booked = 1; 
 
     return lots; 
 }
 
 
-void getCasualWeight(double* offer, int counter, double totalOffer) {
+void getCasualWeightPort(double offer[], int counter, double totalOffer) {
     
     int i; 
     srand(time(NULL)); 
-    double goodSum = 0.0; 
+    double sum = 0.0; 
 
     for (i = 0; i < counter-1; i++) {
         offer[i] = (double)rand() / RAND_MAX * (totalOffer - sum); 
@@ -233,15 +237,30 @@ void getCasualWeight(double* offer, int counter, double totalOffer) {
 
 }
 
-void initDocksSemaphore(port portList) {
+void initDocksSemaphore() {
 
-    if (portList.sem_docks_id == -1) {
+    if (portList->sem_docks_id == -1) {
         perror("semget"); 
         exit(EXIT_FAILURE); 
     }
 
-    if (semctl(portList.sem_docks_id, 0, SETVAL, (rand() % SO_BANCHINE + 1)) == -1) {
+    if (semctl(portList->sem_docks_id, 0, SETVAL, (rand() % SO_BANCHINE + 1)) == -1) {
         perror("semctl"); 
         exit(EXIT_FAILURE); 
     }
+}
+
+int createSharedMemory(size_t size) {
+
+    int shmid; 
+
+    key_t key = ftok(".", 'S'); // genera la chiave per la memoria condivisa
+    shmid = shmget(key, size, IPC_CREAT| 0600); // crea la memoria condivisa
+
+    if (shmid == -1) {
+        perror("shmget"); 
+        exit(EXIT_FAILURE); 
+    }
+    
+    return shmid; 
 }
