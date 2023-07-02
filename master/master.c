@@ -36,16 +36,7 @@ int daysRemains;
 
 int main() {
  
-    SO_PORTI = atoi(getenv("SO_PORTI")); 
-    SO_NAVI = atoi(getenv("SO_NAVI")); 
-    SO_LATO = atoi(getenv("SO_LATO")); 
-    SO_BANCHINE = atoi(getenv("SO_BANCHINE")); 
-    SO_MERCI = atoi(getenv("SO_MERCI")); 
-    SO_SIZE = atoi(getenv("SO_SIZE")); 
-    SO_MAX_VITA = atoi(getenv("SO_MAX_VITA")); 
-    SO_MIN_VITA = atoi(getenv("SO_MIN_VITA")); 
-    SO_FILL = atoi(getenv("SO_FILL")); 
-    SO_DAYS = atoi(getenv("SO_DAYS"));
+
     int i;
     char* args[6];
     char idx_port[3*sizeof(int)+1];

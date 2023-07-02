@@ -14,4 +14,3 @@ void getCasualWeightPort(double offer[], int counter, double totalOffer);
 
 int createSharedMemory(size_t size);
 
-void init_var_port();

@@ -24,11 +24,7 @@ int main(int argc,char **argv) {
     if(argc != 6){
         printf("error argc");
     }
-    int handleProcess = 1; 
-    SO_SPEED = atoi(getenv("SO_SPEED")); 
-    SO_LATO = atoi(getenv("SO_LATO")); 
-    SO_PORTI = atoi(getenv("SO_PORTI")); 
-    SO_DAYS = atoi(getenv("SO_DAYS")); 
+    int handleProcess = 1;
     int semId = atoi(argv[5]); 
     shipList = (ship*)shmat(atoi(argv[3]), NULL, 0); 
     int shipIndex = atoi(argv[1]);  
@@ -218,7 +214,7 @@ int findRequestPort(int idGood, lot* lots, ship* shipList) {
         shmdt(portList); TEST_ERROR; 
 
     }
-    
+
     return found;
 } 
 

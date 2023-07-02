@@ -14,6 +14,7 @@
 #include "porti.h"
 
 
+
 int SO_LATO;  
 int SO_BANCHINE; 
 int SO_MERCI; 
@@ -35,7 +36,6 @@ int main(int argc, char **argv) {
     double totalOffer = atoi(argv[3]); 
     double totalRequest = atoi(argv[4]); 
     int semId = atoi(argv[5]); 
-    init_var_port();
 
     // creo la memoria condivisa per il porto 
     shmid_port = createSharedMemory(sizeof(port) * 1); 
@@ -52,20 +52,6 @@ int main(int argc, char **argv) {
   
 }
 
-
-void init_var_port() {
-    if (getenv("SO_PORTI")) {
-        SO_LATO = atoi(getenv("SO_LATO")); 
-        SO_BANCHINE = atoi(getenv("SO_BANCHINE")); 
-        SO_MERCI = atoi(getenv("SO_MERCI")); 
-        SO_SIZE = atoi(getenv("SO_SIZE")); 
-        SO_MAX_VITA = atoi(getenv("SO_MAX_VITA")); 
-        SO_MIN_VITA = atoi(getenv("SO_MIN_VITA")); 
-    } else {
-        printf("Environment variables are not initialized");
-        exit(EXIT_FAILURE); 
-    }
-}
 
 
 
