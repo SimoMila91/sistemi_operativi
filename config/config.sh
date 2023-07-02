@@ -28,7 +28,6 @@ export SO_DAYS=10
 export SO_BANCHINE=10
 
 
-
 # --version NORMAL
 
 # Time stop ship after storm 

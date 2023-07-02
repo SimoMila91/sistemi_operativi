@@ -28,7 +28,7 @@ database* portList;
 int shmid_ship;
 ship* shipList;
 
-
+int daysRemains; 
 
 int main(int argc, char **argv) {
 
@@ -47,6 +47,8 @@ int main(int argc, char **argv) {
     int memoryKeys[SO_PORTI]; 
     int memoryKeysLength = sizeof(memoryKeys) / sizeof(int); 
     int semStartSimulation =  semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo
+    daysRemains = SO_DAYS; 
+    signal(SIGALRM, alarmHandler);
 
     if (semStartSimulation == -1) {
         perror("semget"); 
@@ -147,6 +149,69 @@ int main(int argc, char **argv) {
     }
 
 
+    // inizializzazione simulazione 
+    while(daysRemains > 0) { 
+        alarm(1); 
+        pause();  // franco pippo 
+    }
+
+    // REPORT FINALE 
+}
+
+void alarmHandler(int signum) {
+
+    daysRemains--; 
+    
+    if (daysRemains > 0) {
+        // REPORT GIORNALIERI 
+    } 
+
+}
+
+int checkEconomy() {
+    
+    int i; 
+    int j; 
+    int k;
+    int foundRequest = 0; 
+    int res; 
+    good* currentOffer; 
+    port portList; 
+    struct sembuf sb; 
+    bzero(&sb, sizeof(struct sembuf ));
+    
+    for (i = 0; i < SO_PORTI && !res; i++) {
+        portList = (port)shmat(db[i].keyPortMemory, NULL, 0); 
+        decreaseSem(sb, portList.sem_inventory_id, 0 );
+        if (portList.inventory.request.lots->available) {
+            foundRequest = portList.inventory.request.idGood; 
+        }   
+        increaseSem(sb, portList.sem_inventory_id, 0);
+        int found = 0;  
+        for (j = 0; j < SO_PORTI && !found; j++) {
+            currentOffer = (port)shmat(db[i].keyPortMemory, NULL, 1);  
+            decreaseSem(sb, portList.sem_inventory_id, 0 );
+            for(k = 0; k < portList.inventory.counterGoodsOffer &&  !found; k++ ){
+                for(l = 0; l < portList.inventory.offer->maxLoots && !found; l++){
+                    if (currentOffer[k].lots[l].available && currentOffer->idGood == foundRequest) {
+                        found = 1; 
+                    }   
+                }
+                
+            }
+            increaseSem(sb, portList.sem_inventory_id, 1);
+            shmdt(currentOffer); TEST_ERROR; 
+        }
+        
+        res = found;
+        shmdt(portList); TEST_ERROR; 
+    }
+    if (shmdt(portList) == -1) {
+        perror("shmdt: ship -> checkEconomy"); 
+        exit(EXIT_FAILURE); 
+    }
+
+    return res;  
 }
 
 void getCasualWeight(double* offer) {
