@@ -10,19 +10,11 @@
 #include <errno.h>
 #include <string.h>
 #include "../macro/macro.h"
+#include "../utility/utility.h"
 #include "master.h"
-#include "../navi/navi.h"
 
-int SO_PORTI; 
-int SO_NAVI;  
-int SO_LATO;  
-int SO_BANCHINE; 
-int SO_MERCI; 
-int SO_SIZE; 
-int SO_MAX_VITA; 
-int SO_MIN_VITA; 
-int SO_FILL; 
-int SO_DAYS;
+
+
 
 // port's variables 
 int shmid_port; 
@@ -35,10 +27,9 @@ ship* shipList;
 int daysRemains; 
 
 int main() {
- 
 
     int i;
-    char* args[6];
+    char* args[7];
     char idx_port[3*sizeof(int)+1];
     char idx_ship[3*sizeof(int)+1];
     char shmid_port_str[3*sizeof(int)+1]; 
@@ -46,10 +37,15 @@ int main() {
     char valueTotalOffer[3*sizeof(double)+1]; 
     char valueTotalRequest[3*sizeof(double)+1]; 
     char keySemMaster[3*sizeof(int)+1]; 
-    double offerArray[SO_PORTI]; 
-    double requestArray[SO_PORTI]; 
-    int semStartSimulation =  semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo
+    char name_file[10];
+    int* offerArray; 
+    int* requestArray; 
+    int semStartSimulation; 
     daysRemains = SO_DAYS;
+
+ 
+    semStartSimulation =  semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
+    TEST_ERROR;
     signal(SIGALRM, alarmHandler);
 
     if (semStartSimulation == -1) {
@@ -64,18 +60,19 @@ int main() {
 
     sprintf(keySemMaster, "%d", semStartSimulation);
     args[5]  = keySemMaster; 
+    args[6] = NULL;
+   
+    offerArray = getCasualWeight();
+    requestArray = getCasualWeight();  
 
-    getCasualWeight(offerArray);
-    getCasualWeight(requestArray);  
-
-    args[0] = "porti";
-
+    sprintf(name_file, "porti");
+    args[0] = name_file;
    
     int shmid_port = shmget(IPC_PRIVATE, sizeof(database) * SO_PORTI, 0600|IPC_CREAT); TEST_ERROR;
     portList = shmat(shmid_port, NULL, 0); TEST_ERROR; 
     sprintf(shmid_port_str, "%d", shmid_port); 
-    args[2] = shmid_ship_str;
-   
+    args[2] = shmid_port_str;
+
     
 
     for(i=0; i < SO_PORTI; i++) {
@@ -88,12 +85,12 @@ int main() {
             break;
         case 0: 
             sprintf(idx_port, "%d", i);
-            sprintf(valueTotalOffer, "%.2f", offerArray[i]); 
-            sprintf(valueTotalRequest, "%.2f", requestArray[i]); 
+            sprintf(valueTotalOffer, "%d", offerArray[i]); 
+            sprintf(valueTotalRequest, "%d", requestArray[i]); 
             args[1] = idx_port; 
             args[3] = valueTotalOffer; 
             args[4] = valueTotalRequest;  
-            execv("../porti/porti.c", args);
+            execv("./porti/porti", args);
             TEST_ERROR;
             exit(EXIT_FAILURE);
         default:
@@ -103,16 +100,19 @@ int main() {
     }
 
 
-
-    args[0] = "navi";
-
+    args[4]= keySemMaster;
+    args[5] = NULL; 
+    printf("103\n");    
+    sprintf(name_file, "navi");
+    args[0] = name_file;
+    printf("%s\n", args[0]);
     shmid_ship = shmget(IPC_PRIVATE, sizeof(ship) * SO_NAVI, 0600|IPC_CREAT); TEST_ERROR; 
-    shipList = shmat(shmid_ship, NULL, 0); 
+    shipList = shmat(shmid_ship, NULL, 0); TEST_ERROR;
     sprintf(shmid_ship_str, "%d", shmid_ship);
     args[3] = shmid_ship_str;
 
     for(i = 0; i < SO_NAVI; i++) {
-        pid_t pid = fork(); 
+        pid_t pid = fork(); TEST_ERROR;
         switch (pid)
         {
         case -1:
@@ -121,35 +121,22 @@ int main() {
             break;
         case 0: 
             sprintf(idx_ship, "%d", i);
-            args[1] = idx_ship; 
-            execv("../navi/navi.c", args);
+            args[1] = idx_ship; TEST_ERROR;
+            execv("./navi/navi", args);
             TEST_ERROR;
             exit(EXIT_FAILURE);
+            break;
         default:
             //padre 
             break;
         }
     }
+    printf("130\n");
+    struct sembuf sb;     
+    decreaseSem(sb, semStartSimulation, 0);
+    waitForZero(sb, semStartSimulation, 0);
 
-    struct sembuf sb; 
-    sb.sem_num = 0; 
-    sb.sem_op = -1; 
-    sb.sem_flg = 0; 
-
-    if (semop(semStartSimulation, &sb, 1) == -1) {
-        perror("semop porto"); 
-        exit(EXIT_FAILURE); 
-    }
-
-    sb.sem_num = 0; 
-    sb.sem_op = 0; 
-    sb.sem_flg = 0; 
-    
-    if (semop(semStartSimulation, &sb, 1) == -1) {
-        perror("semop porto"); 
-        exit(EXIT_FAILURE); 
-    }
-
+    printf("139\n");
 
     // inizializzazione simulazione 
     while(daysRemains > 0) { 
@@ -197,7 +184,7 @@ int checkEconomy() {
             decreaseSem(sb, requestPort->sem_inventory_id, 0 );
             for(k = 0; k < requestPort->inventory.counterGoodsOffer &&  !found; k++ ){
                 for(l = 0; l < requestPort->inventory.offer->maxLoots && !found; l++){
-                    if (currentOffer[k].lots[l].available && currentOffer->idGood == foundRequest) {
+                if (currentOffer[k].lots[l].available && currentOffer->idGood == foundRequest) {
                         found = 1; 
                     }   
                 }
@@ -218,18 +205,33 @@ int checkEconomy() {
     return res;  
 }
 
-void getCasualWeight(double* offer) {
-    
-    int i; 
-    srand(time(NULL)); 
-    double sum = 0.0; 
+int* getCasualWeight() {
 
-    for (i = 0; i < SO_PORTI-1; i++) {
-        offer[i] = (double)rand() / RAND_MAX * (SO_FILL - sum); 
-        sum += offer[i]; 
+
+    int *offer = (int*)malloc(SO_PORTI * sizeof(int));
+    int sum = 0;
+    int i;
+    int resto;
+    int index;
+    srand(time(NULL));
+    for(i=0; i<SO_PORTI; i++){
+        offer[i] = rand()%SO_FILL+1;
+        sum += offer[i];
+        
+
+    }
+    resto = sum;
+    for(i=0; i<SO_PORTI; i++){
+        offer[i] = (SO_FILL * offer[i])/ sum;
+        /*resto -= offer[i];*/
+        if(offer[i] == 0) offer[i]++;
+    
+
     }
 
-    offer[SO_PORTI -1] = SO_FILL - sum; 
+    
+    return offer; 
+    
 
 }
 

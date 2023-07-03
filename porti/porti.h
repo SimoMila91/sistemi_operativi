@@ -1,16 +1,23 @@
-void initPort(int i, double totalOffer, double totalRequest, int semId);
+#ifndef _PORTI_H
+#define _PORTI_H
+
+
+void initPort(int i, int totalOffer, int totalRequest, int semId);
 
 double distance(coordinate* positionX, coordinate* positionY);
 
 int isDuplicate(int numGood, int numOffer);
 
-void initializeInventory(double totalOffer, double totalRequest);
+void initializeInventory(int totalOffer, int totalRequest);
 
 void initDocksSemaphore();
 
 lot* createLoots(double amount, int index);
 
-void getCasualWeightPort(double offer[], int counter, double totalOffer);
+int* getCasualWeightPort(int counter, int totalOffer);
 
 int createSharedMemory(size_t size);
 
+
+
+#endif

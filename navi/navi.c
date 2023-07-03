@@ -6,19 +6,17 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <math.h>
-#include "../macro/macro.h"
-#include "../master/master.h"
-#include "navi.h"
 #include <sys/shm.h>
 #include <time.h>
+#include "../macro/macro.h"
+#include "../utility/utility.h"
+#include "navi.h"
 
-int SO_SPEED; 
-int SO_LATO; 
-int SO_PORTI;  
-int SO_DAYS; 
 
-ship* shipList; //se puntatore freccia se è struttura .  
+ship* ship_list; //se puntatore freccia se è struttura .  
 database* db;
+
+
 int main(int argc,char **argv) {
 
     if(argc != 6){
@@ -26,10 +24,10 @@ int main(int argc,char **argv) {
     }
     int handleProcess = 1;
     int semId = atoi(argv[5]); 
-    shipList = (ship*)shmat(atoi(argv[3]), NULL, 0); 
+    ship_list = (ship*)shmat(atoi(argv[3]), NULL, 0); 
     int shipIndex = atoi(argv[1]);  
     db = (database*)shmat(atoi(argv[2]), NULL, 0); 
-    initShip(&shipList[shipIndex]); 
+    initShip(&ship_list[shipIndex]); 
 
     struct sembuf sb; 
     bzero(&sb, sizeof(struct sembuf ));
@@ -46,7 +44,7 @@ int main(int argc,char **argv) {
 
     while (handleProcess) {
 
-       handleProcess = findPorts(&shipList[shipIndex]); 
+       handleProcess = findPorts(&ship_list[shipIndex]); 
 
     } 
 
@@ -59,19 +57,19 @@ int main(int argc,char **argv) {
 
 }
 
-void initShip(ship* shipList) {
+void initShip(ship* ship_list) {
     struct timespec t; 
     // Inizializza i campi della struttura nave
-    shipList->pid = getpid();
-    shipList->keyOffer = -1;
-    shipList->keyRequest = -1; 
+    ship_list->pid = getpid();
+    ship_list->keyOffer = -1;
+    ship_list->keyRequest = -1; 
     
     // Genera coordinate casuali sulla mappa
-    shipList->position = (coordinate*)malloc(sizeof(coordinate));
+    ship_list->position = (coordinate*)malloc(sizeof(coordinate));
     clock_gettime(CLOCK_REALTIME, &t);
-    shipList->position->x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
+    ship_list->position->x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
     clock_gettime(CLOCK_REALTIME, &t);
-    shipList->position->y = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
+    ship_list->position->y = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
  
    
 }
@@ -90,7 +88,7 @@ void moveToPort(char type, lot* lots, int idGood, ship* ship) {
     double dist; 
     double travelTime; 
     
-    dist = distance(shipList->position, db[(type == 'o' ? shipList->keyOffer : shipList->keyRequest )].position); 
+    dist = distance(ship_list->position, db[(type == 'o' ? ship_list->keyOffer : ship_list->keyRequest )].position); 
     travelTime = dist / SO_SPEED; 
 
     struct timespec sleepTime; 
@@ -99,8 +97,8 @@ void moveToPort(char type, lot* lots, int idGood, ship* ship) {
 
     nanosleep(&sleepTime, NULL); 
     TEST_ERROR; 
-    ship->position->x = db[shipList->keyOffer].position->x; 
-    ship->position->y = db[shipList->keyOffer].position->y;  
+    ship->position->x = db[ship_list->keyOffer].position->x; 
+    ship->position->y = db[ship_list->keyOffer].position->y;  
     if (type == 'o') 
         loadLot(lots, idGood, ship);
     else 
@@ -109,7 +107,7 @@ void moveToPort(char type, lot* lots, int idGood, ship* ship) {
 }
 
 
-int findPorts(ship* shipList) {
+int findPorts(ship* ship_list) {
 
     port *portList;  
     good* offer; 
@@ -136,7 +134,7 @@ int findPorts(ship* shipList) {
                 }
             }
             if (!found) {
-                double distanza = distance(shipList->position, db[i].position);
+                double distanza = distance(ship_list->position, db[i].position);
 
                 if (distanzaMinima == -1 || distanza < distanzaMinima) {
                     distanzaMinima = distanza;
@@ -161,7 +159,7 @@ int findPorts(ship* shipList) {
                 increaseSem(sb, portList->sem_inventory_id, 1);
             }
             if (idGood != -1) {
-                if (findRequestPort(idGood, finalLot, shipList)) {
+                if (findRequestPort(idGood, finalLot, ship_list)) {
                     findPorts = 1;  
                     break; 
                 } else {
@@ -179,17 +177,17 @@ int findPorts(ship* shipList) {
     }
 
     if (findPorts) {
-        shipList->keyOffer = nearestPort_index; 
-        finalLot->id_ship = shipList->pid; 
-        moveToPort('o', finalLot, idGood, shipList); 
-        moveToPort('r', finalLot, idGood, shipList); 
+        ship_list->keyOffer = nearestPort_index; 
+        finalLot->id_ship = ship_list->pid; 
+        moveToPort('o', finalLot, idGood, ship_list); 
+        moveToPort('r', finalLot, idGood, ship_list); 
     }
 
 
     return findPorts; 
 }
 
-int findRequestPort(int idGood, lot* lots, ship* shipList) {
+int findRequestPort(int idGood, lot* lots, ship* ship_list) {
     int i; 
     port* portList; 
     int found; 
@@ -207,7 +205,7 @@ int findRequestPort(int idGood, lot* lots, ship* shipList) {
         increaseSem(sb, portList->sem_inventory_id, 0);
         if (found) {
             decreaseSem(sb, portList->sem_inventory_id, 0);
-            shipList->keyRequest = i; 
+            ship_list->keyRequest = i; 
             portList->inventory.request.requestBooked += lots->value; 
             increaseSem(sb, portList->sem_inventory_id, 0);
         }
@@ -226,7 +224,7 @@ con il porto successivo fino a quando non viene trovato un porto con una richies
 equivalente viene trovato, restituiamo NULL*/
 
 
-void loadLot(lot* lots, int idGood, ship* shipList) {
+void loadLot(lot* lots, int idGood, ship* ship_list) {
 
     struct sembuf sops; 
     port* port; 
@@ -238,7 +236,7 @@ void loadLot(lot* lots, int idGood, ship* shipList) {
 
     bzero(&sops, sizeof(struct sembuf)); // mette a zero tutti i valori di una struttura e serve per non rischiare di dare inf sbagliate alla semop
 
-    port = shmat(db[shipList->keyOffer].keyPortMemory, NULL, 0); 
+    port = shmat(db[ship_list->keyOffer].keyPortMemory, NULL, 0); 
 
     decreaseSem(sops, port->sem_docks_id, 0); 
 
@@ -250,11 +248,11 @@ void loadLot(lot* lots, int idGood, ship* shipList) {
     lots->available = 0; 
     increaseSem(sops, port->sem_inventory_id, 1); 
     
-    shipList->listGoods.idGood = idGood; 
+    ship_list->listGoods.idGood = idGood; 
     
 }
 
-void unloadLot(lot* lots, ship* shipList) {
+void unloadLot(lot* lots, ship* ship_list) {
 
     struct sembuf sops; 
     double x; 
@@ -267,7 +265,7 @@ void unloadLot(lot* lots, ship* shipList) {
 
     bzero(&sops, sizeof(struct sembuf)); // mette a zero tutti i valori di una struttura e serve per non rischiare di dare inf sbagliate alla semop
 
-    port = shmat(db[shipList->keyRequest].keyPortMemory, NULL, 0); 
+    port = shmat(db[ship_list->keyRequest].keyPortMemory, NULL, 0); 
 
     decreaseSem(sops, port->sem_docks_id, 0); 
 
@@ -287,30 +285,3 @@ void unloadLot(lot* lots, ship* shipList) {
 
 
 
-void decreaseSem (struct sembuf sops, int sem_id, int sem_num){
-    sops.sem_num = sem_num;
-    sops.sem_op = -1; 
-    sops.sem_flg = 0; 
-
-    semop(sem_id, &sops, 1); 
-    TEST_ERROR;
-}
-
-void increaseSem (struct sembuf sops, int sem_id, int sem_num){
-    sops.sem_num = sem_num;
-    sops.sem_op = 1; 
-    sops.sem_flg = 0; 
-
-    semop(sem_id, &sops, 1); 
-    TEST_ERROR;
-}
-
-
-void waitForZero (struct sembuf sops, int sem_id, int sem_num){
-    sops.sem_num = sem_num;
-    sops.sem_op = 0; 
-    sops.sem_flg = 0; 
-
-    semop(sem_id, &sops, 1); 
-    TEST_ERROR;
-}

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Number of goods 
-export SO_MERCI=20
+export SO_MERCI=6
 # Max size of goods 
 export SO_SIZE=100
 # Min number of goods's life 
@@ -9,31 +9,23 @@ export SO_MIN_VITA=3
 # Max number of goood's life
 export SO_MAX_VITA=20
 # Map 
-export SO_LATO=10000
+export SO_LATO=100
 # Ship's speed 
-export SO_SPEED=1000
+export SO_SPEED=80
 # Max ship's capacity
-export SO_CAPACITY=1000
+export SO_CAPACITY=100
 # Max number of docks 
-export SO_BANCHINE=10
+export SO_BANCHINE=3
 # Min number of ports 
 export SO_PORTI=4
 # Min number of ships
 export SO_NAVI=1
 # Number of supply and demand 
-export SO_FILL=10
+export SO_FILL=500
 # Time of execution 
 export SO_DAYS=10
-# Number of freeDocks
-export SO_BANCHINE=10
 
 
-# --version NORMAL
 
-# Time stop ship after storm 
-export SO_STORM_DURATION=1
-# Time stop port after storm surge
-export SO_SWELL_DURATION=1
-# Every n hour a ship sinks 
-export SO_MAELSTROM=10
+
 
