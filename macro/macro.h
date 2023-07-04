@@ -11,7 +11,7 @@
 					  errno=0;\
 					  }
 
-// stampa il tipo di errore che si è generato 
+/* stampa il tipo di errore che si è generato */
 
 
 #define SO_PORTI atoi(getenv("SO_PORTI"))
@@ -57,7 +57,7 @@ typedef struct {
 
 typedef struct {
     int pid; 
-    coordinate* position; 
+    coordinate position; 
     warehouse inventory; 
     int sem_docks_id; 
     int sem_inventory_id;
@@ -65,7 +65,7 @@ typedef struct {
 
 typedef struct {
     int pid; 
-    coordinate* position;
+    coordinate position;
     good listGoods; 
     int keyOffer; 
     int keyRequest; 
@@ -73,7 +73,7 @@ typedef struct {
 
 typedef struct {
     int keyPortMemory; 
-    coordinate* position; 
+    coordinate position; 
 } database; 
 
 typedef struct {

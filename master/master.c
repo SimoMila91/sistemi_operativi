@@ -34,16 +34,15 @@ int main() {
     char idx_ship[3*sizeof(int)+1];
     char shmid_port_str[3*sizeof(int)+1]; 
     char shmid_ship_str[3*sizeof(int)+1];
-    char valueTotalOffer[3*sizeof(double)+1]; 
-    char valueTotalRequest[3*sizeof(double)+1]; 
+    char valueTotalOffer[3*sizeof(int)+1]; 
+    char valueTotalRequest[3*sizeof(int)+1]; 
     char keySemMaster[3*sizeof(int)+1]; 
     char name_file[10];
     int* offerArray; 
     int* requestArray; 
     int semStartSimulation; 
     daysRemains = SO_DAYS;
-
- 
+   
     semStartSimulation =  semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
     TEST_ERROR;
     signal(SIGALRM, alarmHandler);
@@ -99,13 +98,11 @@ int main() {
         }
     }
 
-
+    args[2] = shmid_port_str;
     args[4]= keySemMaster;
-    args[5] = NULL; 
-    printf("103\n");    
+    //args[5] = NULL; 
     sprintf(name_file, "navi");
     args[0] = name_file;
-    printf("%s\n", args[0]);
     shmid_ship = shmget(IPC_PRIVATE, sizeof(ship) * SO_NAVI, 0600|IPC_CREAT); TEST_ERROR; 
     shipList = shmat(shmid_ship, NULL, 0); TEST_ERROR;
     sprintf(shmid_ship_str, "%d", shmid_ship);
@@ -115,44 +112,43 @@ int main() {
         pid_t pid = fork(); TEST_ERROR;
         switch (pid)
         {
-        case -1:
-            printf("error in fork of ship's process\n" );
-            exit(EXIT_FAILURE);
-            break;
-        case 0: 
-            sprintf(idx_ship, "%d", i);
-            args[1] = idx_ship; TEST_ERROR;
-            execv("./navi/navi", args);
-            TEST_ERROR;
-            exit(EXIT_FAILURE);
-            break;
-        default:
-            //padre 
-            break;
+            case -1:
+                printf("error in fork of ship's process\n" );
+                exit(EXIT_FAILURE);
+                break;
+            case 0: 
+                sprintf(idx_ship, "%d", i);
+                args[1] = idx_ship; TEST_ERROR;
+                execv("./navi/navi", args);
+                TEST_ERROR;
+                exit(EXIT_FAILURE);
+                break;
+            default:
+                //padre 
+                break;
         }
     }
-    printf("130\n");
+   
     struct sembuf sb;     
     decreaseSem(sb, semStartSimulation, 0);
     waitForZero(sb, semStartSimulation, 0);
-
-    printf("139\n");
 
     // inizializzazione simulazione 
     while(daysRemains > 0) { 
         alarm(1); 
         pause();  // franco pippo 
     }
-
+    printf("fine master\n"); 
     // REPORT FINALE 
 }
 
 void alarmHandler(int signum) {
-    printf("%d", signum); /*da cancellare*/
+
     daysRemains--; 
     
     if (daysRemains > 0) {
         // REPORT GIORNALIERI 
+        pause();  
     } 
 
 }
@@ -211,8 +207,7 @@ int* getCasualWeight() {
     int *offer = (int*)malloc(SO_PORTI * sizeof(int));
     int sum = 0;
     int i;
-    int resto;
-    int index;
+
     srand(time(NULL));
     for(i=0; i<SO_PORTI; i++){
         offer[i] = rand()%SO_FILL+1;
@@ -220,7 +215,7 @@ int* getCasualWeight() {
         
 
     }
-    resto = sum;
+
     for(i=0; i<SO_PORTI; i++){
         offer[i] = (SO_FILL * offer[i])/ sum;
         /*resto -= offer[i];*/

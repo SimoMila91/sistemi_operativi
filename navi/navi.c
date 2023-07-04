@@ -17,18 +17,21 @@ ship* ship_list; //se puntatore freccia se è struttura .
 database* db;
 
 
-int main(int argc,char **argv) {
-
-    if(argc != 6){
-        printf("error argc");
-    }
+int main(int argc, char **argv) {
+    
+    int shipMemoryKey; 
     int handleProcess = 1;
     int semId = atoi(argv[5]); 
-    ship_list = (ship*)shmat(atoi(argv[3]), NULL, 0); 
-    int shipIndex = atoi(argv[1]);  
-    db = (database*)shmat(atoi(argv[2]), NULL, 0); 
-    initShip(&ship_list[shipIndex]); 
 
+    shipMemoryKey = atoi(argv[3]); 
+   
+    ship_list = shmat(atoi(argv[3]), NULL, 0); TEST_ERROR;
+   
+    int shipIndex = atoi(argv[1]);   
+    db = shmat(atoi(argv[2]), NULL, 0); TEST_ERROR; 
+    
+    initShip(&ship_list[shipIndex]); 
+    printf("fine init\n");
     struct sembuf sb; 
     bzero(&sb, sizeof(struct sembuf ));
     decreaseSem(sb, semId, 0);
@@ -49,10 +52,11 @@ int main(int argc,char **argv) {
     } 
 
     // ALTRIMENTI SLEEP 
-    sleep(SO_DAYS); 
+    pause(); 
 
+    printf("ci siamo dio can");
     // Scollega il segmento di memoria condiviso
-    shmdt(db);
+    //  shmdt(db);
     exit(EXIT_SUCCESS); // Termina il processo figlio
 
 }
@@ -63,22 +67,20 @@ void initShip(ship* ship_list) {
     ship_list->pid = getpid();
     ship_list->keyOffer = -1;
     ship_list->keyRequest = -1; 
-    
     // Genera coordinate casuali sulla mappa
-    ship_list->position = (coordinate*)malloc(sizeof(coordinate));
     clock_gettime(CLOCK_REALTIME, &t);
-    ship_list->position->x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
+    ship_list->position.x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
     clock_gettime(CLOCK_REALTIME, &t);
-    ship_list->position->y = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
+    ship_list->position.y = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
  
    
 }
 
 
-double distance(coordinate* positionX, coordinate* positionY) {
+double distance(coordinate positionX, coordinate positionY) {
     // ritorna la distanza tra porto e nave tramite la formula della distanza Euclidea
-    double dx = positionY->x - positionX->x; 
-    double dy = positionY->y - positionX->y; 
+    double dx = positionY.x - positionX.x; 
+    double dy = positionY.y - positionX.y; 
 
     return sqrt(dx * dx + dy * dy); 
 }
@@ -97,8 +99,8 @@ void moveToPort(char type, lot* lots, int idGood, ship* ship) {
 
     nanosleep(&sleepTime, NULL); 
     TEST_ERROR; 
-    ship->position->x = db[ship_list->keyOffer].position->x; 
-    ship->position->y = db[ship_list->keyOffer].position->y;  
+    ship->position.x = db[ship_list->keyOffer].position.x; 
+    ship->position.y = db[ship_list->keyOffer].position.y;  
     if (type == 'o') 
         loadLot(lots, idGood, ship);
     else 
@@ -110,8 +112,8 @@ void moveToPort(char type, lot* lots, int idGood, ship* ship) {
 int findPorts(ship* ship_list) {
 
     port *portList;  
-    good* offer; 
-    lot* lots; 
+    good offer; 
+    lot lots; 
     double distanzaMinima = -1;
     int nearestPort_index;
     int port[SO_PORTI]; // array dei porti offerta già controllati
@@ -121,21 +123,25 @@ int findPorts(ship* ship_list) {
     int c;
     int findPorts = 0; 
     int idGood = -1; 
-    lot* finalLot = NULL;
+    lot finalLot;
     struct sembuf sb; 
     bzero(&sb, sizeof(struct sembuf ));
 
-    while (!findPorts || j != SO_PORTI) {
+    
+    while (!findPorts || j < SO_PORTI) {
         for (i = 0; i < SO_PORTI; i++) {
+           
             int found = 0; 
             for (k = 0; k < j && !found; k++) { 
                 if (i == port[k]) {
                     found = 1; 
                 }
             }
+         
             if (!found) {
+               
                 double distanza = distance(ship_list->position, db[i].position);
-
+            
                 if (distanzaMinima == -1 || distanza < distanzaMinima) {
                     distanzaMinima = distanza;
                     nearestPort_index = i;
@@ -144,27 +150,31 @@ int findPorts(ship* ship_list) {
             }
         
         }
-        portList =shmat(db[nearestPort_index].keyPortMemory, NULL, 0); TEST_ERROR; 
-        offer = portList->inventory.offer;
-       
-        for(i = 0; i < portList->inventory.counterGoodsOffer && !findPorts; i++){
-            lots = offer[i].lots; 
+        printf("fine primo for\n"); 
+        portList = shmat(db[nearestPort_index].keyPortMemory, NULL, 0); TEST_ERROR; 
 
+        //printf("san gennaro: %d\n", offer[0].idGood); 
+        printf("countOffer : %d\n", portList->inventory.counterGoodsOffer); 
+        for(i = 0; i < portList->inventory.counterGoodsOffer && !findPorts; i++) { 
+            printf("lot dentro : \n"); 
+            
+           
             for(c = 0; c < portList->inventory.offer[i].maxLoots && idGood == -1; c++) {
+                printf("hello vribbadi\n"); 
                 decreaseSem(sb, portList->sem_inventory_id, 1);
-                if ( lots[c].available != 0 && lots[c].id_ship != -1 ) {
-                    idGood = offer[i].idGood; 
-                    finalLot = &lots[c];
+                lots = portList->inventory.offer[i].lots[c]; 
+                if (lots.available != 0 && lots.id_ship != -1 ) {
+                    idGood = portList->inventory.offer[i].idGood; 
+                    finalLot = lots;
                 }
                 increaseSem(sb, portList->sem_inventory_id, 1);
             }
             if (idGood != -1) {
-                if (findRequestPort(idGood, finalLot, ship_list)) {
+                if (findRequestPort(idGood, &finalLot, ship_list)) {
                     findPorts = 1;  
                     break; 
                 } else {
                     idGood = -1; 
-                    offer++; // passa alla prossima offerta; 
                 }
             }
         }
@@ -178,9 +188,9 @@ int findPorts(ship* ship_list) {
 
     if (findPorts) {
         ship_list->keyOffer = nearestPort_index; 
-        finalLot->id_ship = ship_list->pid; 
-        moveToPort('o', finalLot, idGood, ship_list); 
-        moveToPort('r', finalLot, idGood, ship_list); 
+        finalLot.id_ship = ship_list->pid; 
+        //moveToPort('o', finalLot, idGood, ship_list); 
+        //moveToPort('r', finalLot, idGood, ship_list); 
     }
 
 
@@ -228,11 +238,11 @@ void loadLot(lot* lots, int idGood, ship* ship_list) {
 
     struct sembuf sops; 
     port* port; 
-    double quantita = lots->value;
-    double tempoCaricamento = quantita / SO_SPEED;
+    int quantita = lots->value;
+    int tempoCaricamento = quantita / SO_SPEED;
     struct timespec sleepTime;
-    sleepTime.tv_sec = (int)tempoCaricamento;
-    sleepTime.tv_nsec = (tempoCaricamento - (int)tempoCaricamento) * 1e9;
+    sleepTime.tv_sec = tempoCaricamento;
+    sleepTime.tv_nsec = (tempoCaricamento - tempoCaricamento) * 1e9;
 
     bzero(&sops, sizeof(struct sembuf)); // mette a zero tutti i valori di una struttura e serve per non rischiare di dare inf sbagliate alla semop
 
@@ -255,13 +265,13 @@ void loadLot(lot* lots, int idGood, ship* ship_list) {
 void unloadLot(lot* lots, ship* ship_list) {
 
     struct sembuf sops; 
-    double x; 
+    int x; 
     port* port; 
-    double quantita = lots->value;
-    double tempoCaricamento = quantita / SO_SPEED;
+    int quantita = lots->value;
+    int tempoCaricamento = quantita / SO_SPEED;
     struct timespec sleepTime;
-    sleepTime.tv_sec = (int)tempoCaricamento;
-    sleepTime.tv_nsec = (tempoCaricamento - (int)tempoCaricamento) * 1e9;
+    sleepTime.tv_sec = tempoCaricamento;
+    sleepTime.tv_nsec = (tempoCaricamento - tempoCaricamento) * 1e9;
 
     bzero(&sops, sizeof(struct sembuf)); // mette a zero tutti i valori di una struttura e serve per non rischiare di dare inf sbagliate alla semop
 

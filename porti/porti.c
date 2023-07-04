@@ -41,9 +41,14 @@ int main(int argc, char **argv) {
     TEST_ERROR; 
 
     myData[index].keyPortMemory = shm_port; 
-    printf("44\n");
+
     initPort(index, totalOffer, totalRequest, semId);
-    printf("46\n");
+    printf("finito\n");
+    struct sembuf sb; 
+    decreaseSem(sb, semId, 0);
+    waitForZero(sb, semId, 0);
+    pause(); 
+    printf("pause port finished\n");
 }
 
 
@@ -54,50 +59,43 @@ void initPort(int i, int totalOffer, int totalRequest, int semId) {
 
     struct timespec t;
 
-    port_list->position = (coordinate*)malloc(sizeof(coordinate*)); 
-    myData->position = (coordinate*)malloc(sizeof(coordinate*));
-
     switch (i) {
         case 0:
-            port_list->position->x = 0;
-            port_list->position->y = 0;
+            port_list->position.x = 0;
+            port_list->position.y = 0;
             break;
         case 1: 
-            port_list->position->x = 0;
-            port_list->position->y = SO_LATO;
+            port_list->position.x = 0;
+            port_list->position.y = SO_LATO;
             break;
 
         case 2 : 
-            port_list->position->x = SO_LATO;
-            port_list->position->y = SO_LATO;
+            port_list->position.x = SO_LATO;
+            port_list->position.y = SO_LATO;
             break;
 
         case 3: 
-            port_list->position->x = SO_LATO;
-            port_list->position->y = 0; 
+            port_list->position.x = SO_LATO;
+            port_list->position.y = 0; 
             break;
         
         default:
         clock_gettime(CLOCK_REALTIME, &t);
-        port_list->position->x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
+        port_list->position.x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
         clock_gettime(CLOCK_REALTIME, &t);
-        port_list->position->x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
+        port_list->position.x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
 
             break;
     }
+    myData[i].position.x = port_list->position.x; 
+    myData[i].position.y = port_list->position.y; 
 
-    myData[i].position = port_list->position;
-    printf("90\n");
     port_list->pid = getpid(); 
     port_list->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
     TEST_ERROR;
     initDocksSemaphore(); // inizializzo il semaforo
 
     initializeInventory(totalOffer, totalRequest); 
-    printf("97\n");
-    struct sembuf sb; 
-    decreaseSem(sb, semId, 0);
-    waitForZero(sb, semId, 0);
 } 
 
 
@@ -148,34 +146,35 @@ void initializeInventory(int totalOffer, int totalRequest) {
             found = rand() % SO_MERCI + 1; 
         } 
 
-
         port_list->inventory.offer[j].idGood = found; 
+        printf("offerta numero %d\n",  port_list->inventory.offer[j].idGood); 
         port_list->inventory.offer[j].amount = casualAmountOffer[j]; 
-        printf("154\n");
+       
         port_list->inventory.offer[j].lots = createLoots(casualAmountOffer[j], j); 
-        printf("156\n");
+        
         lifeTime = rand() % (SO_MAX_VITA + 1 - SO_MIN_VITA) + SO_MIN_VITA;
         port_list->inventory.offer[j].life = lifeTime;          
     }
+    
 }
 
 
-lot* createLoots(double amount, int index) {
+lot* createLoots(int amount, int index) {
 
     int i; 
     int maxLoots; 
     lot* lots;
-    double lotSize; 
-    double carico; //////aggiunto rachy 
+    int lotSize; 
+    int carico; //////aggiunto rachy 
     struct timespec t;
-    printf("171: %d \n", amount);
+
     clock_gettime(CLOCK_REALTIME, &t);
     lotSize = t.tv_nsec% SO_SIZE + 1; 
     while (lotSize > amount) {
         clock_gettime(CLOCK_REALTIME, &t);
         lotSize = t.tv_nsec% SO_SIZE + 1; 
     }
-    printf("175\n");
+
     maxLoots = amount / lotSize + 1; 
     port_list->inventory.offer[index].maxLoots = maxLoots;
     lots = malloc(maxLoots * sizeof(lot)); 
@@ -187,7 +186,6 @@ lot* createLoots(double amount, int index) {
         carico -= lotSize; 
         lots[i].id_ship = -1;
     }
-    printf("187\n");
 
     lots[maxLoots-1].value = carico; 
     lots[maxLoots-1].available = 1; 
@@ -240,8 +238,7 @@ int createSharedMemory(size_t size) {
 
     int shmid; 
 
-    key_t key = ftok(".", 'S'); // genera la chiave per la memoria condivisa
-    shmid = shmget(key, size, IPC_CREAT| 0600); // crea la memoria condivisa
+    shmid = shmget(IPC_PRIVATE, size, IPC_CREAT| 0600); // crea la memoria condivisa
 
     if (shmid == -1) {
         perror("shmget"); 
