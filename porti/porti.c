@@ -16,8 +16,11 @@
 
 
 port* port_list;
-database* myData;  
+database* myData;   
 int shm_port; 
+
+good* offerList;
+int shmid_offer; 
 
 
 int main(int argc, char **argv) {
@@ -31,13 +34,13 @@ int main(int argc, char **argv) {
     int totalRequest = atoi(argv[4]); 
     int semId = atoi(argv[5]); 
 
-    // creo la memoria condivisa per il porto 
+    /* creo memoria condivisa per il porto */
     shm_port = createSharedMemory(sizeof(port) * 1); TEST_ERROR;
     port_list = shmat(shm_port, NULL, 0); 
     port_list->sem_inventory_id = semget(IPC_PRIVATE, 2, IPC_CREAT | 0600); TEST_ERROR;
-    semctl(port_list->sem_inventory_id, 0, SETVAL, 1); //richiesta
+    semctl(port_list->sem_inventory_id, 0, SETVAL, 1); /* semaforo richiesta */
     TEST_ERROR;
-    semctl(port_list->sem_inventory_id, 1, SETVAL, 1); //offerta
+    semctl(port_list->sem_inventory_id, 1, SETVAL, 1); /* semaforo offerta */
     TEST_ERROR; 
 
     myData[index].keyPortMemory = shm_port; 
@@ -91,9 +94,9 @@ void initPort(int i, int totalOffer, int totalRequest, int semId) {
     myData[i].position.y = port_list->position.y; 
 
     port_list->pid = getpid(); 
-    port_list->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
+    port_list->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); /* assegno il semaforo per le banchine */
     TEST_ERROR;
-    initDocksSemaphore(); // inizializzo il semaforo
+    initDocksSemaphore(); /* inizializzo il semaforo per le banchine */
 
     initializeInventory(totalOffer, totalRequest); 
 } 
@@ -119,53 +122,57 @@ void initializeInventory(int totalOffer, int totalRequest) {
     int j; 
     int numGoodRequest; 
     int lifeTime;  
-    int counterGoodsOffer = rand() % SO_MERCI + 1; // ad esempio 3 tipi di merce 
-    int found; // tipo merce
+    int counterGoodsOffer = rand() % SO_MERCI + 1; 
+    int found; /* tipo merce */ tipo merce
     int* casualAmountOffer; 
+    lot* lots; 
+    int shmid_lots; 
 
-    // inizializzo la richiesta 
+    /* inizializzo la richiesta */
     numGoodRequest = rand() % SO_MERCI + 1; 
     port_list->inventory.request.idGood = numGoodRequest; 
     port_list->inventory.request.amount = totalRequest;  
     port_list->inventory.request.requestBooked = 0; 
 
-    //inizializzo l'offerta 
-    
-    port_list->inventory.counterGoodsOffer = counterGoodsOffer;
-
+    /* inizializzo l'offerta */ 
+    port_list->inventory.counterGoodsOffer = counterGoodsOffer; 
     casualAmountOffer = getCasualWeightPort(counterGoodsOffer, totalOffer); 
 
-
-    port_list->inventory.offer = (good*)malloc(counterGoodsOffer * sizeof(good)); 
+    /* creo una memoria condivisa per le offerte */
+    shmid_offer = createSharedMemory(sizeof good * counterGoodsOffer); 
+    offerList = shmat(shmid_offer, NULL, 0); TEST_ERROR;
+    port_list->inventory.keyOffers = shmid_offer; 
 
     for (j = 0; j < counterGoodsOffer; j++) {
-
 
         found = rand() % SO_MERCI + 1; 
         while(j != 0 && (isDuplicate(found, counterGoodsOffer) || found == numGoodRequest)){
             found = rand() % SO_MERCI + 1; 
         } 
 
-        port_list->inventory.offer[j].idGood = found; 
-        printf("offerta numero %d\n",  port_list->inventory.offer[j].idGood); 
-        port_list->inventory.offer[j].amount = casualAmountOffer[j]; 
-       
-        port_list->inventory.offer[j].lots = createLoots(casualAmountOffer[j], j); 
-        
+        offerList[j].idGood = found; 
+        offerList[j].amount = casualAmountOffer[j]; 
+        offerList[j].keyLots
         lifeTime = rand() % (SO_MAX_VITA + 1 - SO_MIN_VITA) + SO_MIN_VITA;
-        port_list->inventory.offer[j].life = lifeTime;          
+        offerList[j].life = lifeTime; 
+        printf("offerta numero %d\n",  offerList[j].idGood); 
+
+        /* creo una memoria condivisa per i lotti */
+        createLoots(casualAmountOffer[j], j); 
+      
+               
     }
     
 }
 
 
-lot* createLoots(int amount, int index) {
+void createLoots(int amount, int index) {
 
     int i; 
     int maxLoots; 
     lot* lots;
     int lotSize; 
-    int carico; //////aggiunto rachy 
+    int carico;  
     struct timespec t;
 
     clock_gettime(CLOCK_REALTIME, &t);
@@ -176,8 +183,10 @@ lot* createLoots(int amount, int index) {
     }
 
     maxLoots = amount / lotSize + 1; 
-    port_list->inventory.offer[index].maxLoots = maxLoots;
-    lots = malloc(maxLoots * sizeof(lot)); 
+    offerList[index].maxLoots = maxLoots;
+    offerList[index].keyLots = createSharedMemory(sizeof lot * maxLoots); 
+
+    lots = shmat(offerList[index].keyLots, NULL, 0);  
 
     for (i = 0; i < maxLoots-1; i++) {
         lots[i].value = lotSize; 
@@ -190,8 +199,6 @@ lot* createLoots(int amount, int index) {
     lots[maxLoots-1].value = carico; 
     lots[maxLoots-1].available = 1; 
     lots[maxLoots-1].type = 0; 
-
-    return lots; 
 }
 
 
@@ -238,7 +245,7 @@ int createSharedMemory(size_t size) {
 
     int shmid; 
 
-    shmid = shmget(IPC_PRIVATE, size, IPC_CREAT| 0600); // crea la memoria condivisa
+    shmid = shmget(IPC_PRIVATE, size, IPC_CREAT| 0600); 
 
     if (shmid == -1) {
         perror("shmget"); 

@@ -12,7 +12,7 @@ void initializeInventory(int totalOffer, int totalRequest);
 
 void initDocksSemaphore();
 
-lot* createLoots(int amount, int index);
+void createLoots(int amount, int index);
 
 int* getCasualWeightPort(int counter, int totalOffer);
 

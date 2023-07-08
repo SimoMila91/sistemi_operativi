@@ -13,7 +13,7 @@
 #include "navi.h"
 
 
-ship* ship_list; //se puntatore freccia se è struttura .  
+ship* ship_list;  
 database* db;
 
 
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
     
     TEST_ERROR;
 
-    // parte la simulazione 
+    /* parte la simulazione */
     
 
     while (handleProcess) {
@@ -51,23 +51,22 @@ int main(int argc, char **argv) {
 
     } 
 
-    // ALTRIMENTI SLEEP 
     pause(); 
 
     printf("ci siamo dio can");
-    // Scollega il segmento di memoria condiviso
-    //  shmdt(db);
-    exit(EXIT_SUCCESS); // Termina il processo figlio
+    /* scollego segmento memoria condivisa */
+    /*  shmdt(db); */
+    exit(EXIT_SUCCESS); /* termina il processo figlio */
 
 }
 
 void initShip(ship* ship_list) {
     struct timespec t; 
-    // Inizializza i campi della struttura nave
+
     ship_list->pid = getpid();
     ship_list->keyOffer = -1;
     ship_list->keyRequest = -1; 
-    // Genera coordinate casuali sulla mappa
+    
     clock_gettime(CLOCK_REALTIME, &t);
     ship_list->position.x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
     clock_gettime(CLOCK_REALTIME, &t);
@@ -78,7 +77,8 @@ void initShip(ship* ship_list) {
 
 
 double distance(coordinate positionX, coordinate positionY) {
-    // ritorna la distanza tra porto e nave tramite la formula della distanza Euclidea
+
+    /* formula distanza Euclidea */
     double dx = positionY.x - positionX.x; 
     double dy = positionY.y - positionX.y; 
 
@@ -112,11 +112,12 @@ void moveToPort(char type, lot* lots, int idGood, ship* ship) {
 int findPorts(ship* ship_list) {
 
     port *portList;  
+    good *offerList; 
     good offer; 
-    lot lots; 
+    lot *lots; 
     double distanzaMinima = -1;
     int nearestPort_index;
-    int port[SO_PORTI]; // array dei porti offerta già controllati
+    int port[SO_PORTI]; /* array per tenere traccia dei porti già controllati */
     int j = 0; 
     int i; 
     int k; 
@@ -152,23 +153,23 @@ int findPorts(ship* ship_list) {
         }
         printf("fine primo for\n"); 
         portList = shmat(db[nearestPort_index].keyPortMemory, NULL, 0); TEST_ERROR; 
+        offerList = shmat(portList->inventory.keyOffers, NULL, 0); TEST_ERROR; 
 
-        //printf("san gennaro: %d\n", offer[0].idGood); 
-        printf("countOffer : %d\n", portList->inventory.counterGoodsOffer); 
-        for(i = 0; i < portList->inventory.counterGoodsOffer && !findPorts; i++) { 
-            printf("lot dentro : \n"); 
-            
+        for(i = 0; i < portList->inventory.counterGoodsOffer && !findPorts; i++) {         
+
+            lots = shmat(offerList[i].keyLots, NULL, 0); 
            
-            for(c = 0; c < portList->inventory.offer[i].maxLoots && idGood == -1; c++) {
-                printf("hello vribbadi\n"); 
-                decreaseSem(sb, portList->sem_inventory_id, 1);
-                lots = portList->inventory.offer[i].lots[c]; 
-                if (lots.available != 0 && lots.id_ship != -1 ) {
-                    idGood = portList->inventory.offer[i].idGood; 
-                    finalLot = lots;
+            for(c = 0; c < offerList[i].maxLoots && idGood == -1; c++) {
+                
+                decreaseSem(sb, portList->sem_inventory_id, 1); /* da rivedere i semafori avendo aggiunto le memorie condivise */ 
+                if (lots[c].available && lots[c].id_ship != -1 ) {
+                    idGood = offerList[i].idGood; 
+                    finalLot = lots[c];    
                 }
                 increaseSem(sb, portList->sem_inventory_id, 1);
             }
+
+            shmdt(lots); TEST_ERROR; /* mi stacco dalla memoria condivisa dei lotti relativi all'offerta */
             if (idGood != -1) {
                 if (findRequestPort(idGood, &finalLot, ship_list)) {
                     findPorts = 1;  
@@ -183,6 +184,7 @@ int findPorts(ship* ship_list) {
             j++; 
         }
         shmdt(portList);
+        shmdt(offerList); 
         TEST_ERROR;
     }
 
@@ -244,7 +246,7 @@ void loadLot(lot* lots, int idGood, ship* ship_list) {
     sleepTime.tv_sec = tempoCaricamento;
     sleepTime.tv_nsec = (tempoCaricamento - tempoCaricamento) * 1e9;
 
-    bzero(&sops, sizeof(struct sembuf)); // mette a zero tutti i valori di una struttura e serve per non rischiare di dare inf sbagliate alla semop
+    bzero(&sops, sizeof(struct sembuf)); /* mette a zero tutti i valori di una struttura e serve per non rischiare di dare inf sbagliate alla semop */
 
     port = shmat(db[ship_list->keyOffer].keyPortMemory, NULL, 0); 
 
@@ -254,7 +256,7 @@ void loadLot(lot* lots, int idGood, ship* ship_list) {
 
     increaseSem(sops, port->sem_docks_id, 0); 
 
-    decreaseSem(sops, port->sem_inventory_id, 1); // se offerta 1 se richiesta 0 
+    decreaseSem(sops, port->sem_inventory_id, 1); /* se offerta 1 se richiesta 0 */
     lots->available = 0; 
     increaseSem(sops, port->sem_inventory_id, 1); 
     

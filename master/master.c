@@ -143,16 +143,44 @@ int main() {
 }
 
 void alarmHandler(int signum) {
-
-    daysRemains--; 
+    printf("%d", signum); /*da cancellare*/
+    
     
     if (daysRemains > 0) {
-        // REPORT GIORNALIERI 
-        pause();  
+        // dump giornaliero 
+        pritnf("[ REPORT PROVVISORIO ]\n\n"); 
+        pause(); 
+        /* dumpSimulation(); */
     } 
-
+    daysRemains--; 
 }
 
+void dumpSimulation() {
+    int i; 
+    int j; 
+    int k; 
+    port* port; 
+    int shipsWithCargo; 
+    int shipdWithoutCargo; 
+    int shipsToPorts; 
+    double totalGoodsAvaToPorts[SO_MERCI];
+    double totalGoodsNotAvaToShips[SO_MERCI]; 
+    double totalGoods 
+    
+    for (i = 0; i < SO_MERCI; i++) {
+        for (j = 0; j < SO_PORTI; j++) {
+            port = shmat(portList[j].keyPortMemory); 
+            for (k = 0; k < port->inventory.counterGoodsOffer; k++) {
+                if (port->inventory.offer->idGood == i+1) {
+                    if (port->inventory.offer->lots[k].available) {
+
+                    }
+                }
+            }
+        }
+    }
+
+}
 
 int checkEconomy() {
     

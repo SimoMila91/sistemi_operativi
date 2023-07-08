@@ -1,6 +1,8 @@
 #ifndef _MACRO_H
 #define _MACRO_H
 
+/* stampa il tipo di errore che si è generato */
+
 #define TEST_ERROR    if (errno && errno != EINTR) {fprintf(stderr, \
 					  "\x1b[31m%s at line %d: PID=%5d, Error %d: %s\n\x1b[37m", \
 					  __FILE__,			\
@@ -10,9 +12,6 @@
 					  strerror(errno)); \
 					  errno=0;\
 					  }
-
-/* stampa il tipo di errore che si è generato */
-
 
 #define SO_PORTI atoi(getenv("SO_PORTI"))
 #define SO_NAVI atoi(getenv("SO_NAVI"))
@@ -36,23 +35,23 @@ typedef struct {
     int id_ship;
     int value; 
     int available; 
-    int type; // se 1 => ricevuta; se 0 => generata
+    int type; /* se 1 => ricevuta; se 0 => generata */ 
 } lot; 
 
 typedef struct {
-    int idGood; // tipo di merce 
-    int amount; // quantità merce 
-    int remains; // solo per la request 
-    int requestBooked; //solo per la request
-    int life;   // tempo di vita misurato in giorni 
-    lot *lots; 
+    int idGood;         /* tipo di merce */  
+    int amount;         /*  quantità merce */
+    int remains;        /* solo per la request */ 
+    int requestBooked;  /* solo per la request */
+    int life;           /* tempo di vita misurato in giorni */ 
+    int keyLots;  // chiave memoria condivisa che contiene lotti dell'offerta 
     int maxLoots;
 } good; 
 
 typedef struct { 
     good request;
-    good *offer; 
-    int counterGoodsOffer; /// quanti tipi di merce offro
+    int keyOffers; // chiave memoria condivisa che contiene tutte le offerte
+    int counterGoodsOffer; /* quanti tipi di merce offro */ 
 } warehouse; 
 
 typedef struct {
