@@ -15,10 +15,17 @@ Inserire i seguenti comandi da terminale:
 
 [ IMPORTANTE - LISTA TODO ]
 
-- aggiungere id memoria condivisa del lotto dell'offerta alla nave quando quest'ultimo è assegnato
-  in questo modo quando carico l'offerta accedo direttamente al lotto evitando cicli for e problemi di sincronizzazione 
+ - controllare se la merce è scaduta in findPorts() e prima di scaricare una merce e prima di caricare
 
-- rivedere metodi come carico ed eventuali altri metodi correlati a questa update 
+ - se scade in nave prima di scaricare o se prima di caricare ritorno a findPorts()
+
+ - se scade 
+
+
+
+
+
+
 
 [ DUMP GIORNALIERO ]
 
