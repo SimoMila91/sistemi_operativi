@@ -148,7 +148,7 @@ void alarmHandler(int signum) {
     
     if (daysRemains > 0) {
         // dump giornaliero 
-        pritnf("[ REPORT PROVVISORIO ]\n\n"); 
+        printf("[ REPORT PROVVISORIO ]\n\n"); 
         pause(); 
         /* dumpSimulation(); */
     } 
@@ -156,31 +156,66 @@ void alarmHandler(int signum) {
 }
 
 void dumpSimulation() {
+
     int i; 
     int j; 
     int k; 
-    port* port; 
-    int shipsWithCargo; 
-    int shipdWithoutCargo; 
-    int shipsToPorts; 
-    double totalGoodsAvaToPorts[SO_MERCI];
-    double totalGoodsNotAvaToShips[SO_MERCI]; 
-    double totalGoods 
-    
-    for (i = 0; i < SO_MERCI; i++) {
-        for (j = 0; j < SO_PORTI; j++) {
-            port = shmat(portList[j].keyPortMemory); 
-            for (k = 0; k < port->inventory.counterGoodsOffer; k++) {
-                if (port->inventory.offer->idGood == i+1) {
-                    if (port->inventory.offer->lots[k].available) {
+    port* currentPort;
+    good* currentOffer; 
+    lot* currentLot; 
+    int totalGoods[SO_MERCI][5]; 
+    /*
+    0 = presente in porto 
+    1 = presente su nave
+    2 = consegnata ad un porto 
+    3 = scaduta in porto 
+    4 = scaduta in nave 
+    */
 
-                    }
-                }
-            }
+    for (i = 0; i < SO_MERCI; i++) {
+        for (j = 0; j < 5; j++) {
+            totalGoods[i][j] = 0; 
         }
     }
 
+    /* totalGoods ports */
+
+    for (i = 0; i < SO_PORTI; i++) {
+        currentPort = shmat(portList[i].keyPortMemory, NULL, 1); 
+        currentOffer = shmat(currentPort->inventory.keyOffers, NULL, 1); 
+
+        int difference = currentPort->inventory.request.amount - currentPort->inventory.request.remains; 
+        totalGoods[currentPort->inventory.request.idGood][2] += difference; 
+
+        for (j = 0; j < currentPort->inventory.counterGoodsOffer; j++) {
+            currentLot = shmat(currentOffer[j].keyLots, NULL, 1); 
+
+            for (k = 0; k < currentOffer[j].maxLoots; k++) {
+                int idGood = currentOffer[j].idGood; 
+
+                if (currentLot[k].available && currentOffer[j].life > (SO_DAYS - daysRemains)) {
+                    totalGoods[idGood][0] += currentLot[k].value; 
+                } 
+
+                if (currentOffer[j].life < (SO_DAYS - daysRemains) && currentLot[k].available) {
+                    totalGoods[idGood][3] += currentLot[k].value; 
+                }
+                
+            }
+            shmid(currentLot); TEST_ERROR; 
+        } 
+        shmid(currentPort); TEST_ERROR; 
+        shmid(currentOffer); TEST_ERROR;   
+    } 
+
+    /* totalGoods ships */
+
+    for (i = 0; i < SO_NAVI; i++) {
+    
+    }
+
 }
+
 
 int checkEconomy() {
     
@@ -189,33 +224,45 @@ int checkEconomy() {
     int k;
     int foundRequest = 0; 
     int res; 
-    int l;
-    good* currentOffer; 
+    int l; 
+    port* currentPort;  
+    good* offerList; 
     port* requestPort; 
+    lot* lot; 
     struct sembuf sb; 
     bzero(&sb, sizeof(struct sembuf ));
     
     for (i = 0; i < SO_PORTI && !res; i++) {
         requestPort = shmat(portList[i].keyPortMemory, NULL, 0); 
         decreaseSem(sb, requestPort->sem_inventory_id, 0 );
-        if (requestPort->inventory.request.lots->available) {
+        if (requestPort->inventory.request.remains > 0) {
             foundRequest = requestPort->inventory.request.idGood; 
         }   
         increaseSem(sb, requestPort->sem_inventory_id, 0);
         int found = 0;  
         for (j = 0; j < SO_PORTI && !found; j++) {
-            currentOffer = shmat(portList[i].keyPortMemory, NULL, 1);  
-            decreaseSem(sb, requestPort->sem_inventory_id, 0 );
-            for(k = 0; k < requestPort->inventory.counterGoodsOffer &&  !found; k++ ){
-                for(l = 0; l < requestPort->inventory.offer->maxLoots && !found; l++){
-                if (currentOffer[k].lots[l].available && currentOffer->idGood == foundRequest) {
+            currentPort = shmat(portList[i].keyPortMemory, NULL, 1);  
+            offerList = shmat(currentPort->inventory.keyOffers, NULL, 1); 
+
+            for(k = 0; k < currentPort->inventory.counterGoodsOffer &&  !found; k++ ) {
+                lot = shmat(offerList[k].keyLots, NULL, 1); 
+
+
+                for(l = 0; l < offerList->maxLoots && !found; l++) {
+                    decreaseSem(sb, offerList[k].semLot, l); 
+
+                    if (lot[l].available && offerList[k].idGood == foundRequest) {
                         found = 1; 
                     }   
+                    increaseSem(sb, offerList[k].semLot, l); 
                 }
+                shmdt(lot); TEST_ERROR; 
+
                 
             }
             increaseSem(sb, requestPort->sem_inventory_id, 1);
-            shmdt(currentOffer); TEST_ERROR; 
+            shmdt(currentPort); TEST_ERROR; 
+            shmdt(offerList); 
         }
         
         res = found;

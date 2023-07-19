@@ -45,6 +45,7 @@ typedef struct {
     int requestBooked;  /* solo per la request */
     int life;           /* tempo di vita misurato in giorni */ 
     int keyLots;  // chiave memoria condivisa che contiene lotti dell'offerta 
+    int semLot; 
     int maxLoots;
 } good; 
 
@@ -68,27 +69,12 @@ typedef struct {
     good listGoods; 
     int keyOffer; 
     int keyRequest; 
+    int keyLot; 
 } ship;
 
 typedef struct {
     int keyPortMemory; 
     coordinate position; 
 } database; 
-
-typedef struct {
-    int shipWithCargo; 
-    int shipWithoutCargo; 
-    int shipToDocks; 
-    // merce per tipologia e stato 
-    // per ogni porto merce presente, consegnata e ricevuta
-    // quantità totale generata dal master di ogni merce e tra queste: 
-    //  - quante scadute in porto 
-    //  - quante scadute in mare 
-    //  - quante rimaste ferme in un porto 
-    //  - quante consegnate da qualche nave 
-    // indicare il porto che ha offerto la quantità maggiore della merce 
-    // indicare il porto che ha richiesto la quantità maggiore della merce 
-
-} report; 
 
 #endif			  

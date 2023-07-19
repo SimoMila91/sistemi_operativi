@@ -112,8 +112,7 @@ void moveToPort(char type, lot* lots, int idGood, ship* ship) {
 int findPorts(ship* ship_list) {
 
     port *portList;  
-    good *offerList; 
-    good offer; 
+    good *offerList;  
     lot *lots; 
     double distanzaMinima = -1;
     int nearestPort_index;
@@ -124,7 +123,7 @@ int findPorts(ship* ship_list) {
     int c;
     int findPorts = 0; 
     int idGood = -1; 
-    lot finalLot;
+    lot *finalLot;
     struct sembuf sb; 
     bzero(&sb, sizeof(struct sembuf ));
 
@@ -150,8 +149,7 @@ int findPorts(ship* ship_list) {
                 }
             }
         
-        }
-        printf("fine primo for\n"); 
+        } 
         portList = shmat(db[nearestPort_index].keyPortMemory, NULL, 0); TEST_ERROR; 
         offerList = shmat(portList->inventory.keyOffers, NULL, 0); TEST_ERROR; 
 
@@ -161,40 +159,46 @@ int findPorts(ship* ship_list) {
            
             for(c = 0; c < offerList[i].maxLoots && idGood == -1; c++) {
                 
-                decreaseSem(sb, portList->sem_inventory_id, 1); /* da rivedere i semafori avendo aggiunto le memorie condivise */ 
-                if (lots[c].available && lots[c].id_ship != -1 ) {
+               
+                if (lots[c].available && lots[c].id_ship == -1 ) {
                     idGood = offerList[i].idGood; 
-                    finalLot = lots[c];    
+                    finalLot = &lots[c];    
                 }
-                increaseSem(sb, portList->sem_inventory_id, 1);
+               
             }
 
-            shmdt(lots); TEST_ERROR; /* mi stacco dalla memoria condivisa dei lotti relativi all'offerta */
+            
             if (idGood != -1) {
-                if (findRequestPort(idGood, &finalLot, ship_list)) {
+                if (findRequestPort(idGood, finalLot, ship_list)) {
                     findPorts = 1;  
+                    
                     break; 
                 } else {
                     idGood = -1; 
                 }
             }
+            shmdt(lots); 
         }
 
         if (!findPorts) {
             j++; 
         }
-        shmdt(portList);
-        shmdt(offerList); 
-        TEST_ERROR;
+      
     }
 
     if (findPorts) {
         ship_list->keyOffer = nearestPort_index; 
-        finalLot.id_ship = ship_list->pid; 
-        //moveToPort('o', finalLot, idGood, ship_list); 
-        //moveToPort('r', finalLot, idGood, ship_list); 
+        finalLot->id_ship = ship_list->pid; 
+        moveToPort('o', finalLot, idGood, ship_list); 
+        moveToPort('r', finalLot, idGood, ship_list); 
+    } else {
+        printf("PORTI NON TROVATI\n"); 
     }
 
+    shmdt(portList);
+    shmdt(offerList); 
+   
+    TEST_ERROR;
 
     return findPorts; 
 }
@@ -261,6 +265,7 @@ void loadLot(lot* lots, int idGood, ship* ship_list) {
     increaseSem(sops, port->sem_inventory_id, 1); 
     
     ship_list->listGoods.idGood = idGood; 
+    ship_list->listGoods.life = 
     
 }
 

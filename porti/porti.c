@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
     TEST_ERROR;
     semctl(port_list->sem_inventory_id, 1, SETVAL, 1); /* semaforo offerta */
     TEST_ERROR; 
-
+    
     myData[index].keyPortMemory = shm_port; 
 
     initPort(index, totalOffer, totalRequest, semId);
@@ -108,7 +108,7 @@ int isDuplicate(int numGood, int numOffer) {
     int x; 
 
     for (x = 0; x < numOffer && !found; x++) {
-        if (port_list->inventory.offer[x].idGood == numGood) {
+        if (offerList[x].idGood == numGood) {
             found = 1; 
         }
     }
@@ -123,7 +123,7 @@ void initializeInventory(int totalOffer, int totalRequest) {
     int numGoodRequest; 
     int lifeTime;  
     int counterGoodsOffer = rand() % SO_MERCI + 1; 
-    int found; /* tipo merce */ tipo merce
+    int found; /* tipo merce */
     int* casualAmountOffer; 
     lot* lots; 
     int shmid_lots; 
@@ -139,7 +139,7 @@ void initializeInventory(int totalOffer, int totalRequest) {
     casualAmountOffer = getCasualWeightPort(counterGoodsOffer, totalOffer); 
 
     /* creo una memoria condivisa per le offerte */
-    shmid_offer = createSharedMemory(sizeof good * counterGoodsOffer); 
+    shmid_offer = createSharedMemory(sizeof(good) * counterGoodsOffer); 
     offerList = shmat(shmid_offer, NULL, 0); TEST_ERROR;
     port_list->inventory.keyOffers = shmid_offer; 
 
@@ -152,7 +152,7 @@ void initializeInventory(int totalOffer, int totalRequest) {
 
         offerList[j].idGood = found; 
         offerList[j].amount = casualAmountOffer[j]; 
-        offerList[j].keyLots
+        offerList[j].keyLots;
         lifeTime = rand() % (SO_MAX_VITA + 1 - SO_MIN_VITA) + SO_MIN_VITA;
         offerList[j].life = lifeTime; 
         printf("offerta numero %d\n",  offerList[j].idGood); 
@@ -183,8 +183,10 @@ void createLoots(int amount, int index) {
     }
 
     maxLoots = amount / lotSize + 1; 
+    offerList[index].semLot = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); 
+    initLotSemaphore(maxLoots, index); 
     offerList[index].maxLoots = maxLoots;
-    offerList[index].keyLots = createSharedMemory(sizeof lot * maxLoots); 
+    offerList[index].keyLots = createSharedMemory(sizeof(lot) * maxLoots); 
 
     lots = shmat(offerList[index].keyLots, NULL, 0);  
 
@@ -247,10 +249,22 @@ int createSharedMemory(size_t size) {
 
     shmid = shmget(IPC_PRIVATE, size, IPC_CREAT| 0600); 
 
-    if (shmid == -1) {
+    if (shmid == -1) { 
         perror("shmget"); 
         exit(EXIT_FAILURE); 
     }
     
     return shmid; 
 }
+
+int initLotSemaphore(int lotLength, int index) {
+    if (offerList[index].semLot == -1) {
+        perror("semget error: Lot Sem"); 
+        exit(EXIT_FAILURE); 
+    }
+
+    if (semctl(offerList[index].semLot, 0, SETVAL, lotLength) == -1) {
+        perror("semctl"); 
+        exit(EXIT_FAILURE); 
+    }
+} 
