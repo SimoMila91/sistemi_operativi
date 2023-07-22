@@ -144,8 +144,7 @@ int main() {
 
 void alarmHandler(int signum) {
     printf("%d", signum); /*da cancellare*/
-    
-    
+      
     if (daysRemains > 0) {
         // dump giornaliero 
         printf("[ REPORT PROVVISORIO ]\n\n"); 
@@ -162,14 +161,20 @@ void dumpSimulation() {
     int k; 
     port* currentPort;
     good* currentOffer; 
-    lot* currentLot; 
+    lot* currentLot;  
     int totalGoods[SO_MERCI][5]; 
-    /*
-    0 = presente in porto 
-    1 = presente su nave
-    2 = consegnata ad un porto 
-    3 = scaduta in porto 
-    4 = scaduta in nave 
+    int shipWithCargo = 0; 
+    int shipWithoutCargo = 0; 
+    int shipToPort = 0; 
+
+
+    /**
+     * ! totalGoods 
+     * * 0 = presente in porto
+     * * 1 = presente su nave
+     * * 2 = consegnata ad un porto
+     * * 3 = scaduta in porto  
+     * * 4 = scaduta in nave 
     */
 
     for (i = 0; i < SO_MERCI; i++) {
@@ -178,10 +183,11 @@ void dumpSimulation() {
         }
     }
 
-    /* totalGoods ports */
+    /* totalGoods ports and ships */
 
     for (i = 0; i < SO_PORTI; i++) {
         currentPort = shmat(portList[i].keyPortMemory, NULL, 1); 
+
         currentOffer = shmat(currentPort->inventory.keyOffers, NULL, 1); 
 
         int difference = currentPort->inventory.request.amount - currentPort->inventory.request.remains; 
@@ -191,14 +197,28 @@ void dumpSimulation() {
             currentLot = shmat(currentOffer[j].keyLots, NULL, 1); 
 
             for (k = 0; k < currentOffer[j].maxLoots; k++) {
-                int idGood = currentOffer[j].idGood; 
 
-                if (currentLot[k].available && currentOffer[j].life > (SO_DAYS - daysRemains)) {
-                    totalGoods[idGood][0] += currentLot[k].value; 
-                } 
-
-                if (currentOffer[j].life < (SO_DAYS - daysRemains) && currentLot[k].available) {
-                    totalGoods[idGood][3] += currentLot[k].value; 
+                int idGood = currentLot[k].idGood; 
+                switch (currentLot[k].status){
+                    case 0:
+                        if (currentLot[k].life > (SO_DAYS - daysRemains)) {
+                            totalGoods[idGood][0] += currentLot[k].value; 
+                        } else {
+                            totalGoods[idGood][3] += currentLot[k].value; 
+                        }
+                        break;
+                    case 1: 
+                        if (currentLot[k].life > (SO_DAYS - daysRemains)) {
+                            totalGoods[idGood][1] += currentLot[k].value; 
+                        } else {
+                            totalGoods[idGood][4] += currentLot[k].value; 
+                        }
+                        break; 
+                    case 2: 
+                        totalGoods[idGood][2] += currentLot[k].value; 
+                        break; 
+                    default:
+                        break;
                 }
                 
             }
@@ -208,14 +228,23 @@ void dumpSimulation() {
         shmid(currentOffer); TEST_ERROR;   
     } 
 
-    /* totalGoods ships */
-
     for (i = 0; i < SO_NAVI; i++) {
-    
+        
+        if (shipList[i].statusPosition == 0 && shipList[i].statusCargo == 0) {
+            shipWithoutCargo++; 
+        } 
+
+        if (shipList[i].statusPosition == 0 && shipList[i].statusCargo == 1) {
+            shipWithCargo++; 
+        }
+
+        if (shipList[i].statusPosition == 1) {
+            shipToPort++; 
+        }
     }
 
-}
 
+}
 
 int checkEconomy() {
     
@@ -278,7 +307,6 @@ int checkEconomy() {
 
 int* getCasualWeight() {
 
-
     int *offer = (int*)malloc(SO_PORTI * sizeof(int));
     int sum = 0;
     int i;
@@ -287,22 +315,14 @@ int* getCasualWeight() {
     for(i=0; i<SO_PORTI; i++){
         offer[i] = rand()%SO_FILL+1;
         sum += offer[i];
-        
-
     }
 
     for(i=0; i<SO_PORTI; i++){
         offer[i] = (SO_FILL * offer[i])/ sum;
         /*resto -= offer[i];*/
         if(offer[i] == 0) offer[i]++;
-    
-
     }
-
-    
     return offer; 
-    
-
 }
 
 

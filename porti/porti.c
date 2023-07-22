@@ -96,7 +96,7 @@ void initPort(int i, int totalOffer, int totalRequest, int semId) {
     port_list->pid = getpid(); 
     port_list->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); /* assegno il semaforo per le banchine */
     TEST_ERROR;
-    initDocksSemaphore(); /* inizializzo il semaforo per le banchine */
+    port_list->totalDocks = initDocksSemaphore(); /* inizializzo il semaforo per le banchine e salvo il numero di banchine */
 
     initializeInventory(totalOffer, totalRequest); 
 } 
@@ -149,7 +149,6 @@ void initializeInventory(int totalOffer, int totalRequest) {
         while(j != 0 && (isDuplicate(found, counterGoodsOffer) || found == numGoodRequest)){
             found = rand() % SO_MERCI + 1; 
         } 
-
         offerList[j].idGood = found; 
         offerList[j].amount = casualAmountOffer[j]; 
         offerList[j].keyLots;
@@ -158,7 +157,7 @@ void initializeInventory(int totalOffer, int totalRequest) {
         printf("offerta numero %d\n",  offerList[j].idGood); 
 
         /* creo una memoria condivisa per i lotti */
-        createLoots(casualAmountOffer[j], j); 
+        createLoots(casualAmountOffer[j], j, lifetime, found); 
       
                
     }
@@ -166,7 +165,7 @@ void initializeInventory(int totalOffer, int totalRequest) {
 }
 
 
-void createLoots(int amount, int index) {
+void createLoots(int amount, int index, int lifetime, int idGood) {
 
     int i; 
     int maxLoots; 
@@ -196,11 +195,17 @@ void createLoots(int amount, int index) {
         lots[i].type = 0; 
         carico -= lotSize; 
         lots[i].id_ship = -1;
+        lots[i].life = lifetime; 
+        lots[i].idGood = idGood; 
+        lots[i].status = 0; 
     }
 
     lots[maxLoots-1].value = carico; 
     lots[maxLoots-1].available = 1; 
     lots[maxLoots-1].type = 0; 
+    lots[maxLoots-1].life = lifetime; 
+    lots[maxLoots-1].idGood = idGood; 
+    lots[maxLoots-1].status = 0; 
 }
 
 
@@ -230,17 +235,23 @@ int* getCasualWeightPort( int counter, int totalOffer) {
 
 }
 
-void initDocksSemaphore() {
+int initDocksSemaphore() {
+
+    int docks; 
 
     if (port_list->sem_docks_id == -1) {
         perror("semget"); 
         exit(EXIT_FAILURE); 
     }
 
-    if (semctl(port_list->sem_docks_id, 0, SETVAL, (rand() % SO_BANCHINE + 1)) == -1) {
+    docks = (rand() % SO_BANCHINE + 1); 
+
+    if (semctl(port_list->sem_docks_id, 0, SETVAL, docks) == -1) {
         perror("semctl"); 
         exit(EXIT_FAILURE); 
     }
+
+    return docks;
 }
 
 int createSharedMemory(size_t size) {

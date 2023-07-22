@@ -32,26 +32,29 @@ typedef struct {
 } coordinate; 
 
 typedef struct {
+    int idGood;  /* tipo di merce */  
     int id_ship;
+    int life;    /* tempo di vita misurato in giorni */ 
     int value; 
     int available; 
-    int type; /* se 1 => ricevuta; se 0 => generata */ 
+    int type;    /* se 1 => ricevuta; se 0 => generata */ 
+    int status; /* se 0 nel porto, se 1 in nave, se 2 consegnato */
 } lot; 
 
 typedef struct {
-    int idGood;         /* tipo di merce */  
+    int idGood; 
     int amount;         /*  quantità merce */
     int remains;        /* solo per la request */ 
+    int life; 
     int requestBooked;  /* solo per la request */
-    int life;           /* tempo di vita misurato in giorni */ 
-    int keyLots;  // chiave memoria condivisa che contiene lotti dell'offerta 
+    int keyLots;   /** chiave memoria condivisa che contiene lotti dell'offerta */ 
     int semLot; 
     int maxLoots;
 } good; 
 
 typedef struct { 
     good request;
-    int keyOffers; // chiave memoria condivisa che contiene tutte le offerte
+    int keyOffers; /** chiave memoria condivisa che contiene tutte le offerte */ 
     int counterGoodsOffer; /* quanti tipi di merce offro */ 
 } warehouse; 
 
@@ -59,7 +62,8 @@ typedef struct {
     int pid; 
     coordinate position; 
     warehouse inventory; 
-    int sem_docks_id; 
+    int sem_docks_id; /* semaforo banchine */
+    int totalDocks; /* totale banchine */
     int sem_inventory_id;
 } port; 
 
@@ -70,6 +74,8 @@ typedef struct {
     int keyOffer; 
     int keyRequest; 
     int keyLot; 
+    int statusCargo; /* 0 = senza merce a bordo,  1 = con merce a bordo */
+    int statusPosition; /* 0 = in mare, 1 = carico/scarico */
 } ship;
 
 typedef struct {

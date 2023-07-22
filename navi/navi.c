@@ -15,6 +15,8 @@
 
 ship* ship_list;  
 database* db;
+time_t startTime, currentTime; 
+int dayRemains; 
 
 
 int main(int argc, char **argv) {
@@ -26,6 +28,9 @@ int main(int argc, char **argv) {
     shipMemoryKey = atoi(argv[3]); 
    
     ship_list = shmat(atoi(argv[3]), NULL, 0); TEST_ERROR;
+
+    dayRemains = SO_DAYS; 
+    time_t startTime, currentTime; 
    
     int shipIndex = atoi(argv[1]);   
     db = shmat(atoi(argv[2]), NULL, 0); TEST_ERROR; 
@@ -45,9 +50,14 @@ int main(int argc, char **argv) {
     /* parte la simulazione */
     
 
-    while (handleProcess) {
+    while (handleProcess && dayRemains > 0) {
 
-       handleProcess = findPorts(&ship_list[shipIndex]); 
+        currentTime = time(NULL); 
+        if (currentTime - startTime >= 1) {
+            dayRemains--; 
+            startTime = currentTime; 
+        }
+        handleProcess = findPorts(&ship_list[shipIndex]); 
 
     } 
 
@@ -66,6 +76,8 @@ void initShip(ship* ship_list) {
     ship_list->pid = getpid();
     ship_list->keyOffer = -1;
     ship_list->keyRequest = -1; 
+    ship_list->statusCargo = 0; 
+    ship_list->statusPosition = 0; 
     
     clock_gettime(CLOCK_REALTIME, &t);
     ship_list->position.x = (double)(t.tv_nsec%(SO_LATO*100))/ 100.0;
@@ -85,10 +97,11 @@ double distance(coordinate positionX, coordinate positionY) {
     return sqrt(dx * dx + dy * dy); 
 }
 
-void moveToPort(char type, lot* lots, int idGood, ship* ship) {
+int moveToPort(char type, lot* lots, int idGood, ship* ship) {
     
     double dist; 
     double travelTime; 
+    int done = 0;  
     
     dist = distance(ship_list->position, db[(type == 'o' ? ship_list->keyOffer : ship_list->keyRequest )].position); 
     travelTime = dist / SO_SPEED; 
@@ -102,15 +115,18 @@ void moveToPort(char type, lot* lots, int idGood, ship* ship) {
     ship->position.x = db[ship_list->keyOffer].position.x; 
     ship->position.y = db[ship_list->keyOffer].position.y;  
     if (type == 'o') 
-        loadLot(lots, idGood, ship);
+       done = loadLot(lots, idGood, ship);
     else 
         unloadLot(lots, ship); 
+
+    return done; 
 
 }
 
 
 int findPorts(ship* ship_list) {
 
+    int done; 
     port *portList;  
     good *offerList;  
     lot *lots; 
@@ -155,29 +171,34 @@ int findPorts(ship* ship_list) {
 
         for(i = 0; i < portList->inventory.counterGoodsOffer && !findPorts; i++) {         
 
-            lots = shmat(offerList[i].keyLots, NULL, 0); 
-           
-            for(c = 0; c < offerList[i].maxLoots && idGood == -1; c++) {
+
+            if (offerList[i].life < (SO_DAYS - dayRemains)) {
+                
+                lots = shmat(offerList[i].keyLots, NULL, 0); 
+
+                 for(c = 0; c < offerList[i].maxLoots && idGood == -1; c++) {
                 
                
-                if (lots[c].available && lots[c].id_ship == -1 ) {
-                    idGood = offerList[i].idGood; 
-                    finalLot = &lots[c];    
+                    if (lots[c].available && lots[c].id_ship == -1 ) {
+                        idGood = offerList[i].idGood; 
+                        finalLot = &lots[c];    
+                    }
+                
                 }
-               
-            }
 
             
-            if (idGood != -1) {
-                if (findRequestPort(idGood, finalLot, ship_list)) {
-                    findPorts = 1;  
-                    
-                    break; 
-                } else {
-                    idGood = -1; 
+                if (idGood != -1) {
+                    if (findRequestPort(idGood, finalLot, ship_list)) {
+                        findPorts = 1;  
+                        
+                        break; 
+                    } else {
+                        idGood = -1; 
+                    }
                 }
+                shmdt(lots); 
             }
-            shmdt(lots); 
+           
         }
 
         if (!findPorts) {
@@ -189,8 +210,10 @@ int findPorts(ship* ship_list) {
     if (findPorts) {
         ship_list->keyOffer = nearestPort_index; 
         finalLot->id_ship = ship_list->pid; 
-        moveToPort('o', finalLot, idGood, ship_list); 
-        moveToPort('r', finalLot, idGood, ship_list); 
+        done = moveToPort('o', finalLot, idGood, ship_list); 
+        if (done)  { /* se la merce è scaduta e quindi non è stata caricata non si muove verso la richiesta */
+             moveToPort('r', finalLot, idGood, ship_list); 
+        }
     } else {
         printf("PORTI NON TROVATI\n"); 
     }
@@ -240,8 +263,9 @@ con il porto successivo fino a quando non viene trovato un porto con una richies
 equivalente viene trovato, restituiamo NULL*/
 
 
-void loadLot(lot* lots, int idGood, ship* ship_list) {
+int loadLot(lot* lots, int idGood, ship* ship_list) {
 
+    int done = 0; 
     struct sembuf sops; 
     port* port; 
     int quantita = lots->value;
@@ -253,20 +277,31 @@ void loadLot(lot* lots, int idGood, ship* ship_list) {
     bzero(&sops, sizeof(struct sembuf)); /* mette a zero tutti i valori di una struttura e serve per non rischiare di dare inf sbagliate alla semop */
 
     port = shmat(db[ship_list->keyOffer].keyPortMemory, NULL, 0); 
-
-    decreaseSem(sops, port->sem_docks_id, 0); 
-
-    nanosleep(&sleepTime, NULL); TEST_ERROR;
-
-    increaseSem(sops, port->sem_docks_id, 0); 
-
-    decreaseSem(sops, port->sem_inventory_id, 1); /* se offerta 1 se richiesta 0 */
-    lots->available = 0; 
+ 
+    decreaseSem(sops, port->sem_inventory_id, 1); 
+        if (lots->life < (SO_DAYS - dayRemains)) {
+            ship_list->statusCargo = 1; 
+            done = 1; 
+            lots->available = 0; 
+            lots->status = 1;
+            ship_list->listGoods.idGood = idGood; 
+        }    
     increaseSem(sops, port->sem_inventory_id, 1); 
-    
-    ship_list->listGoods.idGood = idGood; 
-    ship_list->listGoods.life = 
-    
+
+    if (done) {
+
+         ship_list->statusPosition = 1;
+
+        decreaseSem(sops, port->sem_docks_id, 0); 
+
+        nanosleep(&sleepTime, NULL); TEST_ERROR;
+
+        increaseSem(sops, port->sem_docks_id, 0); 
+        
+        ship_list->statusPosition = 0; 
+    }
+
+    return done; 
 }
 
 void unloadLot(lot* lots, ship* ship_list) {
@@ -280,6 +315,8 @@ void unloadLot(lot* lots, ship* ship_list) {
     sleepTime.tv_sec = tempoCaricamento;
     sleepTime.tv_nsec = (tempoCaricamento - tempoCaricamento) * 1e9;
 
+    ship_list->statusPosition = 1; 
+
     bzero(&sops, sizeof(struct sembuf)); // mette a zero tutti i valori di una struttura e serve per non rischiare di dare inf sbagliate alla semop
 
     port = shmat(db[ship_list->keyRequest].keyPortMemory, NULL, 0); 
@@ -292,9 +329,19 @@ void unloadLot(lot* lots, ship* ship_list) {
 
     decreaseSem(sops, port->sem_inventory_id, 0); 
 
-    x = lots->value > port->inventory.request.remains ? 0 : port->inventory.request.remains - lots->value; 
-    port->inventory.request.remains = x; 
-    port->inventory.request.requestBooked -= lots->value; 
+    ship_list->statusPosition = 0; 
+
+    /**
+     * ? se la merce è scaduta la nave la non scarica e la butta 
+    */
+    if (!(lots->life > (SO_DAYS - dayRemains))) {
+        x = lots->value > port->inventory.request.remains ? 0 : port->inventory.request.remains - lots->value; 
+        lots->status = 2;
+        port->inventory.request.remains = x; 
+        port->inventory.request.requestBooked -= lots->value;      
+    }
+
+    ship_list->statusCargo = 0; 
 
     increaseSem(sops, port->sem_inventory_id, 0); 
 

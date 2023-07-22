@@ -10,9 +10,9 @@ int isDuplicate(int numGood, int numOffer);
 
 void initializeInventory(int totalOffer, int totalRequest);
 
-void initDocksSemaphore();
+int initDocksSemaphore();
 
-void createLoots(int amount, int index);
+void createLoots(int amount, int index, int lifetime, int idGood);
 
 int* getCasualWeightPort(int counter, int totalOffer);
 

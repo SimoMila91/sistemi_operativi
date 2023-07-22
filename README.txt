@@ -15,16 +15,8 @@ Inserire i seguenti comandi da terminale:
 
 [ IMPORTANTE - LISTA TODO ]
 
- - controllare se la merce è scaduta in findPorts() e prima di scaricare una merce e prima di caricare
-
- - se scade in nave prima di scaricare o se prima di caricare ritorno a findPorts()
-
- - se scade 
-
-
-
-
-
+- ultimo punto del giornaliere controllando per ogni lotto del porto type e available 
+- funzione merci report finale 
 
 
 [ DUMP GIORNALIERO ]
