@@ -37,7 +37,6 @@ typedef struct {
     int life;    /* tempo di vita misurato in giorni */ 
     int value; 
     int available; 
-    int type;    /* se 1 => ricevuta; se 0 => generata */ 
     int status; /* se 0 nel porto, se 1 in nave, se 2 consegnato */
 } lot; 
 

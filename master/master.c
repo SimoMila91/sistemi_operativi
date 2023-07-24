@@ -140,6 +140,7 @@ int main() {
     }
     printf("fine master\n"); 
     // REPORT FINALE 
+    dumpSimulation(1); 
 }
 
 void alarmHandler(int signum) {
@@ -149,12 +150,12 @@ void alarmHandler(int signum) {
         // dump giornaliero 
         printf("[ REPORT PROVVISORIO ]\n\n"); 
         pause(); 
-        /* dumpSimulation(); */
+        /* dumpSimulation(0); */
     } 
     daysRemains--; 
 }
 
-void dumpSimulation() {
+void dumpSimulation(int type) { 
 
     int i; 
     int j; 
@@ -162,11 +163,17 @@ void dumpSimulation() {
     port* currentPort;
     good* currentOffer; 
     lot* currentLot;  
-    int totalGoods[SO_MERCI][5]; 
+    int idGood; 
+    int totalGoods[SO_MERCI+1][5]; 
+    int reportPorts[SO_PORTI][6]; 
     int shipWithCargo = 0; 
     int shipWithoutCargo = 0; 
     int shipToPort = 0; 
-
+    int semval; 
+    /* final report variables */
+    int goodsReport[SO_MERCI+1][5]; 
+    int maxOfferPort = [SO_MERCI+1][2];
+    int maxRequestPort = [SO_MERCI+1][2];  
 
     /**
      * ! totalGoods 
@@ -177,16 +184,59 @@ void dumpSimulation() {
      * * 4 = scaduta in nave 
     */
 
-    for (i = 0; i < SO_MERCI; i++) {
-        for (j = 0; j < 5; j++) {
-            totalGoods[i][j] = 0; 
-        }
+     /**
+     * ! reportPorts 
+     * * 0 = pid del porto
+     * * 1 = presente in porto
+     * * 2 = spedita dal porto
+     * * 3 = ricevuta in porto 
+     * * 4 = banchine occupate
+     * * 5 = banchine totali
+    */
+   
+    /**
+     * ! goodsReport 
+     * * 0 = quantità totale generata
+     * * 1 = rimasta ferma in un porto
+     * * 2 = scaduta in porto 
+     * * 3 = scaduta in nave
+     * * 4 = consegnata
+    */
+
+    /**
+     * ! maxOfferPort && maxRequestPort 
+     * * 0 = quantità della merce
+     * * 1 = pid porto 
+     * 
+     * ? incremento di 1 il valore SO_MERCI in modo da far corrispondere l'idGood alla rispettiva riga della matrice
+    */
+   
+
+    totalGoods = initializeMatrix(totalGoods, SO_MERCI); 
+    reportPorts = initializeMatrix(reportPorts, SO_PORTI); 
+
+    if (type) {
+        goodsReport = initializeMatrix(goodsReport, SO_MERCI); 
     }
 
     /* totalGoods ports and ships */
 
     for (i = 0; i < SO_PORTI; i++) {
+
         currentPort = shmat(portList[i].keyPortMemory, NULL, 1); 
+
+        reportPorts[i][0] = currentPort->pid; 
+        reportPorts[i][3] = currentPort->inventory.request.amount -  currentPort->inventory.request.remains;
+        semval = semctl(currentPort->sem_docks_id, 0 GETVAL); 
+        reportPorts[i][4] = (currentPort->totalDocks - semval); 
+        reportPorts[i][5] = currentPort->totalDocks; 
+
+        if (type) {
+            if (currentPort->inventory.request.amount > maxRequestPort[currentPort->inventory.request.idGood][0]) {
+                maxRequestPort[currentPort->inventory.request.idGood][0] = currentPort->inventory.request.amount; 
+                maxRequestPort[currentPort->inventory.request.idGood][1] = currentPort->pid; 
+            }
+        }
 
         currentOffer = shmat(currentPort->inventory.keyOffers, NULL, 1); 
 
@@ -194,16 +244,37 @@ void dumpSimulation() {
         totalGoods[currentPort->inventory.request.idGood][2] += difference; 
 
         for (j = 0; j < currentPort->inventory.counterGoodsOffer; j++) {
+
+            if (type) {
+                goodsReport[currentOffer[j].idGood][0] += currentOffer[j].amount; 
+
+                if(currentOffer[j].amount > maxOfferPort[currentOffer[j].idGood][0]) {
+                    maxOfferPort[currentOffer[j].idGood][0] = currentOffer[j].amount; 
+                    maxOfferPort[currentOffer[j].idGood][1] = currentPort->pid; 
+                }
+
+            }
+
             currentLot = shmat(currentOffer[j].keyLots, NULL, 1); 
 
             for (k = 0; k < currentOffer[j].maxLoots; k++) {
 
-                int idGood = currentLot[k].idGood; 
+
+                if (currentLot->available) {
+                    reportPorts[i][1] += currentLot->value; 
+                } else {
+                    reportPorts[i][2] += currentLot->value; 
+                }
+
+                idGood = currentLot[k].idGood; 
                 switch (currentLot[k].status){
                     case 0:
                         if (currentLot[k].life > (SO_DAYS - daysRemains)) {
                             totalGoods[idGood][0] += currentLot[k].value; 
                         } else {
+                            if (type) {
+                                goodsReport[currentLot[k].idGood][2] += currentLot[k].value; 
+                            }
                             totalGoods[idGood][3] += currentLot[k].value; 
                         }
                         break;
@@ -211,11 +282,17 @@ void dumpSimulation() {
                         if (currentLot[k].life > (SO_DAYS - daysRemains)) {
                             totalGoods[idGood][1] += currentLot[k].value; 
                         } else {
+                            if (type) {
+                                goodsReport[currentLot[k].idGood][3] += currentLot[k].value; 
+                            }
                             totalGoods[idGood][4] += currentLot[k].value; 
                         }
                         break; 
                     case 2: 
                         totalGoods[idGood][2] += currentLot[k].value; 
+                        if (type) {
+                            goodsReport[currentLot[k].idGood][4] += currentLot[k].value; 
+                        }
                         break; 
                     default:
                         break;
@@ -242,8 +319,17 @@ void dumpSimulation() {
             shipToPort++; 
         }
     }
+}
 
-
+void initializeMatrix(int matrix[][], int length) {
+    int i; 
+    int j; 
+    for (i = 0; i < length; i++) {
+        for (j = 0; j < 5; j++) {
+            matrix[i][j] = 0; 
+        }
+    }
+    return matrix; 
 }
 
 int checkEconomy() {

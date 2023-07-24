@@ -192,7 +192,6 @@ void createLoots(int amount, int index, int lifetime, int idGood) {
     for (i = 0; i < maxLoots-1; i++) {
         lots[i].value = lotSize; 
         lots[i].available = 1; 
-        lots[i].type = 0; 
         carico -= lotSize; 
         lots[i].id_ship = -1;
         lots[i].life = lifetime; 
@@ -202,7 +201,6 @@ void createLoots(int amount, int index, int lifetime, int idGood) {
 
     lots[maxLoots-1].value = carico; 
     lots[maxLoots-1].available = 1; 
-    lots[maxLoots-1].type = 0; 
     lots[maxLoots-1].life = lifetime; 
     lots[maxLoots-1].idGood = idGood; 
     lots[maxLoots-1].status = 0; 
