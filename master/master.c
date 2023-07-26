@@ -300,6 +300,9 @@ void dumpSimulation(int type) {
                 
             }
             shmid(currentLot); TEST_ERROR; 
+            /*printTotalGoods(totalGoods, SO_MERCI+1);*/
+            /*printReportPorts(reportPorts, SO_PORTI);*/
+            /*if(type) printGoodsReport(goodsReport, SO_MERCI+1);*/
         } 
         shmid(currentPort); TEST_ERROR; 
         shmid(currentOffer); TEST_ERROR;   
@@ -331,6 +334,70 @@ void initializeMatrix(int matrix[][], int length) {
     }
     return matrix; 
 }
+
+
+
+
+/* INIZIO METODI PER LA STAMPA*/
+
+void printTotalGoods (int matrix[][], int lenght){
+    printf("ID merce | Presente in porto | Presente in nave | Consegnata ad un porto | Scaduta in porto | Scaduta in nave\n");
+
+    // Stampa delle linee orizzontali prima dei dati
+    printf("-------------------------------------------------------------------------------------------------------------\n");
+
+    // Stampa della tabella con i dati
+    for (int i = 1; i < lenght; i++) {
+        printf("%20d | %20d | %20d | %20d | %20d\n",
+           i, matrix[i][0], matrix[i][1], matrix[i][2], matrix[i][3], matrix[i][4]);
+
+        // Stampa delle linee orizzontali tra le righe di dati
+        printf("---------------------------------------------------------------------------------------------------------\n");
+    }
+
+}
+
+void printReportPorts(int matrix[][], int lenght){
+
+    printf("PID Porto | Presente Porto | Presente Nave | Spedita dal Porto | Ricevuta in Porto | Banchine Occupate | Banchine Totali\n");
+
+    // Stampa delle linee orizzontali prima dei dati
+    printf("------------------------------------------------------------------------------------------------------------------------\n");
+
+    // Stampa della tabella con i dati
+    for (int i = 0; i < lenght; i++) {
+        printf("%9d | %15d | %14d | %17d | %18d | %17d | %15d\n",
+            matrix[i][0], matrix[i][1], matrix[i][2], matrix[i][3], matrix[i][4], matrix[i][5], matrix[i][6]);
+
+        // Stampa delle linee orizzontali tra le righe di dati
+        printf("--------------------------------------------------------------------------------------------------------------------\n");
+    }
+}
+
+void printGoodsReport(int matrix[][], int lenght){
+    printf("ID merce | Quantità Generata | Rimasta Ferma | Scaduta in Porto | Scaduta in Nave | Consegnata\n");
+
+    // Stampa delle linee orizzontali prima dei dati
+    printf("-----------------------------------------------------------------------------------------------\n");
+
+    // Stampa della tabella con i dati
+    for (int i = 1; i < lenght; i++) {
+        printf("%4d | %16d | %13d | %16d | %15d | %10d\n",
+            i,
+            matrix[i][0],
+            matrix[i][1],
+            matrix[i][2],
+            matrix[i][3],
+            matrix[i][4]);
+
+        // Stampa delle linee orizzontali tra le righe di dati
+        printf("--------------------------------------------------------------------------------------------\n");
+    }    
+}
+
+
+/* FINE METODI PER LA STAMPA*/
+
 
 int checkEconomy() {
     
