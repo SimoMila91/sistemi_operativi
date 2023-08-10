@@ -48,7 +48,6 @@ int main(int argc, char **argv) {
     TEST_ERROR;
 
     /* parte la simulazione */
-    
 
     while (handleProcess && dayRemains > 0) {
 
@@ -346,6 +345,67 @@ void unloadLot(lot* lots, ship* ship_list) {
     increaseSem(sops, port->sem_inventory_id, 0); 
 
 }
+/**
+ * 
+ * 
+int checkEconomy() {
+    
+    int i; 
+    int j; 
+    int k;
+    int foundRequest = 0; 
+    int res; 
+    int l; 
+    port* currentPort;  
+    good* offerList; 
+    port* requestPort; 
+    lot* lot; 
+    struct sembuf sb; 
+    bzero(&sb, sizeof(struct sembuf ));
+    
+    for (i = 0; i < SO_PORTI && !res; i++) {
+        requestPort = shmat(portList[i].keyPortMemory, NULL, 0); 
+        decreaseSem(sb, requestPort->sem_inventory_id, 0 );
+        if (requestPort->inventory.request.remains > 0) {
+            foundRequest = requestPort->inventory.request.idGood; 
+        }   
+        increaseSem(sb, requestPort->sem_inventory_id, 0);
+        int found = 0;  
+        for (j = 0; j < SO_PORTI && !found; j++) {
+            currentPort = shmat(portList[i].keyPortMemory, NULL, 1);  
+            offerList = shmat(currentPort->inventory.keyOffers, NULL, 1); 
+
+            for(k = 0; k < currentPort->inventory.counterGoodsOffer &&  !found; k++ ) {
+                lot = shmat(offerList[k].keyLots, NULL, 1); 
 
 
+                for(l = 0; l < offerList->maxLoots && !found; l++) {
+                    decreaseSem(sb, offerList[k].semLot, l); 
 
+                    if (lot[l].available && offerList[k].idGood == foundRequest) {
+                        found = 1; 
+                    }   
+                    increaseSem(sb, offerList[k].semLot, l); 
+                }
+                shmdt(lot); TEST_ERROR; 
+
+                
+            }
+            increaseSem(sb, requestPort->sem_inventory_id, 1);
+            shmdt(currentPort); TEST_ERROR; 
+            shmdt(offerList); 
+        }
+        
+        res = found;
+        shmdt(requestPort); TEST_ERROR; 
+    }
+    
+    if (shmdt(requestPort) == -1) {
+        perror("shmdt: ship -> checkEconomy"); 
+        exit(EXIT_FAILURE); 
+    }
+
+    return res;  
+}
+
+*/

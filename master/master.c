@@ -300,9 +300,6 @@ void dumpSimulation(int type) {
                 
             }
             shmid(currentLot); TEST_ERROR; 
-            /*printTotalGoods(totalGoods, SO_MERCI+1);*/
-            /*printReportPorts(reportPorts, SO_PORTI);*/
-            /*if(type) printGoodsReport(goodsReport, SO_MERCI+1);*/
         } 
         shmid(currentPort); TEST_ERROR; 
         shmid(currentOffer); TEST_ERROR;   
@@ -322,6 +319,19 @@ void dumpSimulation(int type) {
             shipToPort++; 
         }
     }
+
+    printTotalGoods(totalGoods, SO_MERCI+1);
+    printf("Il numero di navi con il carico a bordo è: %d\n", shipWithCargo); 
+    printf("Il numero di navi senza carico a bordo è: %d\n", shipWithoutCargo); 
+    printf("Il numero di navi presso un porto è: %d\n", shipToPort);  
+    printReportPorts(reportPorts, SO_PORTI);
+
+    /* if final simulation => */
+    if (type) {
+        printGoodsReport(goodsReport, SO_MERCI+1);
+        printMaxPort(maxOfferPort, maxRequestPort, SO_MERCI+1); 
+    }
+
 }
 
 void initializeMatrix(int matrix[][], int length) {
@@ -340,14 +350,17 @@ void initializeMatrix(int matrix[][], int length) {
 
 /* INIZIO METODI PER LA STAMPA*/
 
-void printTotalGoods (int matrix[][], int lenght){
+void printTotalGoods (int matrix[][], int lenght) {
+
+    int i; 
+    
     printf("ID merce | Presente in porto | Presente in nave | Consegnata ad un porto | Scaduta in porto | Scaduta in nave\n");
 
     // Stampa delle linee orizzontali prima dei dati
     printf("-------------------------------------------------------------------------------------------------------------\n");
 
     // Stampa della tabella con i dati
-    for (int i = 1; i < lenght; i++) {
+    for (i = 1; i < lenght; i++) {
         printf("%20d | %20d | %20d | %20d | %20d\n",
            i, matrix[i][0], matrix[i][1], matrix[i][2], matrix[i][3], matrix[i][4]);
 
@@ -357,7 +370,9 @@ void printTotalGoods (int matrix[][], int lenght){
 
 }
 
-void printReportPorts(int matrix[][], int lenght){
+void printReportPorts(int matrix[][], int lenght) {
+
+    int i; 
 
     printf("PID Porto | Presente Porto | Presente Nave | Spedita dal Porto | Ricevuta in Porto | Banchine Occupate | Banchine Totali\n");
 
@@ -365,7 +380,7 @@ void printReportPorts(int matrix[][], int lenght){
     printf("------------------------------------------------------------------------------------------------------------------------\n");
 
     // Stampa della tabella con i dati
-    for (int i = 0; i < lenght; i++) {
+    for (i = 0; i < lenght; i++) {
         printf("%9d | %15d | %14d | %17d | %18d | %17d | %15d\n",
             matrix[i][0], matrix[i][1], matrix[i][2], matrix[i][3], matrix[i][4], matrix[i][5], matrix[i][6]);
 
@@ -374,14 +389,17 @@ void printReportPorts(int matrix[][], int lenght){
     }
 }
 
-void printGoodsReport(int matrix[][], int lenght){
+void printGoodsReport(int matrix[][], int lenght) {
+
+    int i; 
+
     printf("ID merce | Quantità Generata | Rimasta Ferma | Scaduta in Porto | Scaduta in Nave | Consegnata\n");
 
     // Stampa delle linee orizzontali prima dei dati
     printf("-----------------------------------------------------------------------------------------------\n");
 
     // Stampa della tabella con i dati
-    for (int i = 1; i < lenght; i++) {
+    for (i = 1; i < lenght; i++) {
         printf("%4d | %16d | %13d | %16d | %15d | %10d\n",
             i,
             matrix[i][0],
@@ -395,68 +413,29 @@ void printGoodsReport(int matrix[][], int lenght){
     }    
 }
 
+void printMaxPort(int matrixOffer[][], int matrixRequest[][], int lenght) {
+
+    int i;  
+
+    printf("ID merce | Porto con massima offerta | Quantità offerta | Porto massima richiesta | Quantità richiesta\n"); 
+    
+    // Stampa delle linee orizzontali prima dei dati
+    printf("------------------------------------------------------------------------------------------------------\n");
+
+    for (i = 1; i < lenght; i++) {
+        printf("%20d | %20d | %20d | %20d | %20d\n"
+            i, 
+            matrixOffer[i][1], 
+            matrixOffer[i][0], 
+            matrixRequest[i][1], 
+            matrixRequest[i][0]
+        ); 
+        // Stampa delle linee orizzontali prima dei dati
+        printf("------------------------------------------------------------------------------------------------------\n");
+    }
+}
 
 /* FINE METODI PER LA STAMPA*/
-
-
-int checkEconomy() {
-    
-    int i; 
-    int j; 
-    int k;
-    int foundRequest = 0; 
-    int res; 
-    int l; 
-    port* currentPort;  
-    good* offerList; 
-    port* requestPort; 
-    lot* lot; 
-    struct sembuf sb; 
-    bzero(&sb, sizeof(struct sembuf ));
-    
-    for (i = 0; i < SO_PORTI && !res; i++) {
-        requestPort = shmat(portList[i].keyPortMemory, NULL, 0); 
-        decreaseSem(sb, requestPort->sem_inventory_id, 0 );
-        if (requestPort->inventory.request.remains > 0) {
-            foundRequest = requestPort->inventory.request.idGood; 
-        }   
-        increaseSem(sb, requestPort->sem_inventory_id, 0);
-        int found = 0;  
-        for (j = 0; j < SO_PORTI && !found; j++) {
-            currentPort = shmat(portList[i].keyPortMemory, NULL, 1);  
-            offerList = shmat(currentPort->inventory.keyOffers, NULL, 1); 
-
-            for(k = 0; k < currentPort->inventory.counterGoodsOffer &&  !found; k++ ) {
-                lot = shmat(offerList[k].keyLots, NULL, 1); 
-
-
-                for(l = 0; l < offerList->maxLoots && !found; l++) {
-                    decreaseSem(sb, offerList[k].semLot, l); 
-
-                    if (lot[l].available && offerList[k].idGood == foundRequest) {
-                        found = 1; 
-                    }   
-                    increaseSem(sb, offerList[k].semLot, l); 
-                }
-                shmdt(lot); TEST_ERROR; 
-
-                
-            }
-            increaseSem(sb, requestPort->sem_inventory_id, 1);
-            shmdt(currentPort); TEST_ERROR; 
-            shmdt(offerList); 
-        }
-        
-        res = found;
-        shmdt(requestPort); TEST_ERROR; 
-    }
-    if (shmdt(requestPort) == -1) {
-        perror("shmdt: ship -> checkEconomy"); 
-        exit(EXIT_FAILURE); 
-    }
-
-    return res;  
-}
 
 int* getCasualWeight() {
 

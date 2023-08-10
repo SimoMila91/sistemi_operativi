@@ -11,6 +11,7 @@ int findPorts(ship* shipList);
 int findRequestPort(int idGood, lot* lots, ship* shipList); 
 int loadLot(lot* lots, int idGood, ship* shipList);
 void unloadLot(lot* lots, ship* shipList);
+/* int checkEconomy(); */
 
 
 
