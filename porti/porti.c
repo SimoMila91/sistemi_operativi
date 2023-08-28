@@ -45,8 +45,7 @@ int main(int argc, char **argv) {
     
     myData[index].keyPortMemory = shm_port; 
 
-    initPort(index, totalOffer, totalRequest, semId);
-    printf("finito\n");
+    initPort(index, totalOffer, totalRequest);
     struct sembuf sb; 
     decreaseSem(sb, semId, 0);
     waitForZero(sb, semId, 0);
@@ -57,7 +56,7 @@ int main(int argc, char **argv) {
 
 
 
-void initPort(int i, int totalOffer, int totalRequest, int semId) {
+void initPort(int i, int totalOffer, int totalRequest) {
 
 
     struct timespec t;
@@ -125,8 +124,7 @@ void initializeInventory(int totalOffer, int totalRequest) {
     int counterGoodsOffer = rand() % SO_MERCI + 1; 
     int found; /* tipo merce */
     int* casualAmountOffer; 
-    lot* lots; 
-    int shmid_lots; 
+
 
     /* inizializzo la richiesta */
     numGoodRequest = rand() % SO_MERCI + 1; 
@@ -150,14 +148,12 @@ void initializeInventory(int totalOffer, int totalRequest) {
             found = rand() % SO_MERCI + 1; 
         } 
         offerList[j].idGood = found; 
-        offerList[j].amount = casualAmountOffer[j]; 
-        offerList[j].keyLots;
+        offerList[j].amount = casualAmountOffer[j];
         lifeTime = rand() % (SO_MAX_VITA + 1 - SO_MIN_VITA) + SO_MIN_VITA;
         offerList[j].life = lifeTime; 
-        printf("offerta numero %d\n",  offerList[j].idGood); 
 
         /* creo una memoria condivisa per i lotti */
-        createLoots(casualAmountOffer[j], j, lifetime, found); 
+        createLoots(casualAmountOffer[j], j, lifeTime, found); 
       
                
     }
@@ -266,7 +262,7 @@ int createSharedMemory(size_t size) {
     return shmid; 
 }
 
-int initLotSemaphore(int lotLength, int index) {
+void initLotSemaphore(int lotLength, int index) {
     if (offerList[index].semLot == -1) {
         perror("semget error: Lot Sem"); 
         exit(EXIT_FAILURE); 

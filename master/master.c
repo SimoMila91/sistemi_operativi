@@ -24,12 +24,12 @@ database* portList;
 int shmid_ship;
 ship* shipList;
 
-int daysRemains; 
+int* daysRemains; 
 
 int main() {
 
     int i;
-    char* args[7];
+    char* args[8];
     char idx_port[3*sizeof(int)+1];
     char idx_ship[3*sizeof(int)+1];
     char shmid_port_str[3*sizeof(int)+1]; 
@@ -38,28 +38,24 @@ int main() {
     char valueTotalRequest[3*sizeof(int)+1]; 
     char keySemMaster[3*sizeof(int)+1]; 
     char name_file[10];
+    char shimd_days_str[3*sizeof(int)+1];
     int* offerArray; 
     int* requestArray; 
     int semStartSimulation; 
-    daysRemains = SO_DAYS;
-   
-    semStartSimulation =  semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo 
+    int shmid_day = shmget(IPC_PRIVATE, sizeof(int), 0600|IPC_CREAT); TEST_ERROR;
+    daysRemains = shmat(shmid_day, NULL, 0);
+    *daysRemains = SO_DAYS;
+    sprintf(shimd_days_str, "%d", shmid_day);
+    semStartSimulation =  semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo
     TEST_ERROR;
     signal(SIGALRM, alarmHandler);
 
-    if (semStartSimulation == -1) {
-        perror("semget"); 
-        exit(EXIT_FAILURE); 
-    }
-
-    if (semctl(semStartSimulation, 0, SETVAL, (SO_PORTI + SO_NAVI + 1)) == -1) {
-        perror("semctl"); 
-        exit(EXIT_FAILURE); 
-    }
-
+    semctl(semStartSimulation, 0, SETVAL, (SO_PORTI + SO_NAVI + 1)); TEST_ERROR;
+ 
     sprintf(keySemMaster, "%d", semStartSimulation);
     args[5]  = keySemMaster; 
-    args[6] = NULL;
+    args[6] = shimd_days_str;
+    args[7] = NULL;
    
     offerArray = getCasualWeight();
     requestArray = getCasualWeight();  
@@ -132,27 +128,46 @@ int main() {
     struct sembuf sb;     
     decreaseSem(sb, semStartSimulation, 0);
     waitForZero(sb, semStartSimulation, 0);
-
+    printf("PROVA\n");
     // inizializzazione simulazione 
-    while(daysRemains > 0) { 
+    while(*daysRemains > 0) { 
+
         alarm(1); 
         pause();  // franco pippo 
     }
     printf("fine master\n"); 
     // REPORT FINALE 
     dumpSimulation(1); 
+    killProcess();
 }
 
+void killProcess(){
+    int i; 
+    port* port;
+    for(i = 0; i < SO_NAVI; i++){       //prima navi perchè altrimenti continuano a tentare l'accesso alla memoria condivisa del porto morto
+        kill(shipList[i].pid, SIGINT);
+    }    
+    for(i = 0; i < SO_PORTI; i++){
+        port = shmat(portList[i].keyPortMemory, NULL, 0); TEST_ERROR;
+        kill(port->pid, SIGINT); TEST_ERROR;
+        shmdt(port);
+    }
+
+}
+
+
+
 void alarmHandler(int signum) {
-    printf("%d", signum); /*da cancellare*/
-      
-    if (daysRemains > 0) {
+    //printf("%d", signum); /*da cancellare*/
+    if(signum == SIGINT) ;
+    printf("DAY %d\n", *daysRemains);
+    if (*daysRemains > 0) {
         // dump giornaliero 
         printf("[ REPORT PROVVISORIO ]\n\n"); 
-        pause(); 
-        /* dumpSimulation(0); */
+      
+        dumpSimulation(0); 
     } 
-    daysRemains--; 
+    *daysRemains-= 1; 
 }
 
 void dumpSimulation(int type) { 
@@ -164,16 +179,38 @@ void dumpSimulation(int type) {
     good* currentOffer; 
     lot* currentLot;  
     int idGood; 
-    int totalGoods[SO_MERCI+1][5]; 
-    int reportPorts[SO_PORTI][6]; 
+    int **totalGoods; 
+    int **reportPorts; 
     int shipWithCargo = 0; 
     int shipWithoutCargo = 0; 
     int shipToPort = 0; 
     int semval; 
     /* final report variables */
-    int goodsReport[SO_MERCI+1][5]; 
-    int maxOfferPort = [SO_MERCI+1][2];
-    int maxRequestPort = [SO_MERCI+1][2];  
+    int **goodsReport; 
+    int **maxOfferPort;
+    int **maxRequestPort;  
+    
+    totalGoods= (int **)malloc(sizeof(int*)*(SO_MERCI + 1));
+    for(i=0; i < SO_MERCI+1; i++){
+        totalGoods[i] = (int *)malloc(sizeof(int)*5);
+    }
+    reportPorts = (int **)malloc(sizeof(int*)*SO_PORTI);
+    for(i=0; i<SO_PORTI; i++){
+        reportPorts[i] = (int *)malloc(sizeof(int)*6);
+    }
+    goodsReport = (int **)malloc(sizeof(int*)*(SO_MERCI + 1));
+    for(i=0; i < SO_MERCI+1; i++){
+        goodsReport[i] = (int *)malloc(sizeof(int)*5);
+    }
+    maxOfferPort = (int **)malloc(sizeof(int*)* (SO_MERCI + 1));
+    for(i=0; i < SO_MERCI+1; i++){
+        maxOfferPort[i] = (int *)malloc(sizeof(int)*2);
+    }    
+    maxRequestPort = (int **)malloc(sizeof(int*)* (SO_MERCI + 1));
+    for(i=0; i < SO_MERCI+1; i++){
+        maxRequestPort[i] = (int *)malloc(sizeof(int)*2);
+    }
+
 
     /**
      * ! totalGoods 
@@ -212,39 +249,39 @@ void dumpSimulation(int type) {
     */
    
 
-    totalGoods = initializeMatrix(totalGoods, SO_MERCI); 
-    reportPorts = initializeMatrix(reportPorts, SO_PORTI); 
+    initializeMatrix(reportPorts, SO_PORTI, 6);
+    initializeMatrix(totalGoods, SO_MERCI+1, 5);
+    if(type){
+        initializeMatrix(goodsReport, SO_MERCI+1, 5);
+    }   
+    initializeMatrix(maxOfferPort, SO_MERCI+1, 2);
+    initializeMatrix(maxRequestPort, SO_MERCI+1, 2);
 
-    if (type) {
-        goodsReport = initializeMatrix(goodsReport, SO_MERCI); 
-    }
 
     /* totalGoods ports and ships */
 
     for (i = 0; i < SO_PORTI; i++) {
 
         currentPort = shmat(portList[i].keyPortMemory, NULL, 1); 
-
+        TEST_ERROR;
         reportPorts[i][0] = currentPort->pid; 
         reportPorts[i][3] = currentPort->inventory.request.amount -  currentPort->inventory.request.remains;
-        semval = semctl(currentPort->sem_docks_id, 0 GETVAL); 
-        reportPorts[i][4] = (currentPort->totalDocks - semval); 
+        
+        semval = semctl(currentPort->sem_docks_id, 0, GETVAL); TEST_ERROR;
+        reportPorts[i][4] = currentPort->totalDocks - semval; 
         reportPorts[i][5] = currentPort->totalDocks; 
-
         if (type) {
-            if (currentPort->inventory.request.amount > maxRequestPort[currentPort->inventory.request.idGood][0]) {
+            if (currentPort->inventory.request.amount >= maxRequestPort[currentPort->inventory.request.idGood][0]) {
                 maxRequestPort[currentPort->inventory.request.idGood][0] = currentPort->inventory.request.amount; 
                 maxRequestPort[currentPort->inventory.request.idGood][1] = currentPort->pid; 
             }
         }
-
-        currentOffer = shmat(currentPort->inventory.keyOffers, NULL, 1); 
+        currentOffer = shmat(currentPort->inventory.keyOffers, NULL, 1);TEST_ERROR;
 
         int difference = currentPort->inventory.request.amount - currentPort->inventory.request.remains; 
         totalGoods[currentPort->inventory.request.idGood][2] += difference; 
 
         for (j = 0; j < currentPort->inventory.counterGoodsOffer; j++) {
-
             if (type) {
                 goodsReport[currentOffer[j].idGood][0] += currentOffer[j].amount; 
 
@@ -255,7 +292,7 @@ void dumpSimulation(int type) {
 
             }
 
-            currentLot = shmat(currentOffer[j].keyLots, NULL, 1); 
+            currentLot = shmat(currentOffer[j].keyLots, NULL, 1); TEST_ERROR;
 
             for (k = 0; k < currentOffer[j].maxLoots; k++) {
 
@@ -269,7 +306,7 @@ void dumpSimulation(int type) {
                 idGood = currentLot[k].idGood; 
                 switch (currentLot[k].status){
                     case 0:
-                        if (currentLot[k].life > (SO_DAYS - daysRemains)) {
+                        if (currentLot[k].life > (SO_DAYS - (*daysRemains))) {
                             totalGoods[idGood][0] += currentLot[k].value; 
                         } else {
                             if (type) {
@@ -279,7 +316,9 @@ void dumpSimulation(int type) {
                         }
                         break;
                     case 1: 
-                        if (currentLot[k].life > (SO_DAYS - daysRemains)) {
+                        if (currentLot[k].life > (SO_DAYS - (*daysRemains))) {
+                            printTest(totalGoods[idGood][1]);
+                            printTest(currentLot[k].value);
                             totalGoods[idGood][1] += currentLot[k].value; 
                         } else {
                             if (type) {
@@ -299,10 +338,10 @@ void dumpSimulation(int type) {
                 }
                 
             }
-            shmid(currentLot); TEST_ERROR; 
+            /*shmdt(currentLot); TEST_ERROR;*/
         } 
-        shmid(currentPort); TEST_ERROR; 
-        shmid(currentOffer); TEST_ERROR;   
+        /*shmdt(currentPort); TEST_ERROR; 
+        shmdt(currentOffer); TEST_ERROR; */  
     } 
 
     for (i = 0; i < SO_NAVI; i++) {
@@ -320,29 +359,30 @@ void dumpSimulation(int type) {
         }
     }
 
-    printTotalGoods(totalGoods, SO_MERCI+1);
+    /*printTotalGoods(totalGoods, SO_MERCI+1);
     printf("Il numero di navi con il carico a bordo è: %d\n", shipWithCargo); 
     printf("Il numero di navi senza carico a bordo è: %d\n", shipWithoutCargo); 
     printf("Il numero di navi presso un porto è: %d\n", shipToPort);  
     printReportPorts(reportPorts, SO_PORTI);
-
-    /* if final simulation => */
-    if (type) {
+    */
+    /*if final simulation => */
+    /*if (type) {
         printGoodsReport(goodsReport, SO_MERCI+1);
         printMaxPort(maxOfferPort, maxRequestPort, SO_MERCI+1); 
-    }
 
+    }*/
+    printf("FINE REPORT\n");
+    printTest(375);
 }
 
-void initializeMatrix(int matrix[][], int length) {
+void initializeMatrix(int **matrix, int r, int c) {
     int i; 
     int j; 
-    for (i = 0; i < length; i++) {
-        for (j = 0; j < 5; j++) {
+    for (i = 0; i < r; i++) {
+        for (j = 0; j < c; j++) {
             matrix[i][j] = 0; 
         }
     }
-    return matrix; 
 }
 
 
@@ -350,7 +390,7 @@ void initializeMatrix(int matrix[][], int length) {
 
 /* INIZIO METODI PER LA STAMPA*/
 
-void printTotalGoods (int matrix[][], int lenght) {
+void printTotalGoods (int **matrix, int lenght) {
 
     int i; 
     
@@ -361,7 +401,7 @@ void printTotalGoods (int matrix[][], int lenght) {
 
     // Stampa della tabella con i dati
     for (i = 1; i < lenght; i++) {
-        printf("%20d | %20d | %20d | %20d | %20d\n",
+        printf("%d | %20d | %20d | %20d | %20d | %20d\n",
            i, matrix[i][0], matrix[i][1], matrix[i][2], matrix[i][3], matrix[i][4]);
 
         // Stampa delle linee orizzontali tra le righe di dati
@@ -370,7 +410,7 @@ void printTotalGoods (int matrix[][], int lenght) {
 
 }
 
-void printReportPorts(int matrix[][], int lenght) {
+void printReportPorts(int **matrix, int lenght) {
 
     int i; 
 
@@ -389,7 +429,7 @@ void printReportPorts(int matrix[][], int lenght) {
     }
 }
 
-void printGoodsReport(int matrix[][], int lenght) {
+void printGoodsReport(int **matrix, int lenght) {
 
     int i; 
 
@@ -413,7 +453,7 @@ void printGoodsReport(int matrix[][], int lenght) {
     }    
 }
 
-void printMaxPort(int matrixOffer[][], int matrixRequest[][], int lenght) {
+void printMaxPort(int **matrixOffer, int **matrixRequest, int lenght) {
 
     int i;  
 
@@ -423,13 +463,12 @@ void printMaxPort(int matrixOffer[][], int matrixRequest[][], int lenght) {
     printf("------------------------------------------------------------------------------------------------------\n");
 
     for (i = 1; i < lenght; i++) {
-        printf("%20d | %20d | %20d | %20d | %20d\n"
+        printf("%20d | %20d | %20d | %20d | %20d\n",
             i, 
             matrixOffer[i][1], 
             matrixOffer[i][0], 
             matrixRequest[i][1], 
-            matrixRequest[i][0]
-        ); 
+            matrixRequest[i][0]); 
         // Stampa delle linee orizzontali prima dei dati
         printf("------------------------------------------------------------------------------------------------------\n");
     }

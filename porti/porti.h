@@ -2,7 +2,7 @@
 #define _PORTI_H
 
 
-void initPort(int i, int totalOffer, int totalRequest, int semId);
+void initPort(int i, int totalOffer, int totalRequest);
 
 double distance(coordinate positionX, coordinate positionY);
 
@@ -17,6 +17,8 @@ void createLoots(int amount, int index, int lifetime, int idGood);
 int* getCasualWeightPort(int counter, int totalOffer);
 
 int createSharedMemory(size_t size);
+
+void initLotSemaphore(int lotLength, int index);
 
 
 

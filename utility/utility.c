@@ -36,3 +36,14 @@ void waitForZero (struct sembuf sops, int sem_id, int sem_num){
     semop(sem_id, &sops, 1); 
     TEST_ERROR;
 }
+
+
+void printTest(int riga){
+    char *string;
+    int numBytes;
+    string = malloc(50);
+    numBytes = sprintf(string, "===========> %d\n", riga);
+    fflush(stdout);
+    write(1, string, numBytes); 
+    free(string);
+}

@@ -15,22 +15,21 @@
 
 ship* ship_list;  
 database* db;
-time_t startTime, currentTime; 
-int dayRemains; 
+
+int* dayRemains; 
 
 
 int main(int argc, char **argv) {
     
-    int shipMemoryKey; 
     int handleProcess = 1;
     int semId = atoi(argv[5]); 
+    if(argc == 0) printf("errore\n");
 
-    shipMemoryKey = atoi(argv[3]); 
    
     ship_list = shmat(atoi(argv[3]), NULL, 0); TEST_ERROR;
+    dayRemains = shmat(atoi(argv[6]), NULL, 0); TEST_ERROR;
 
-    dayRemains = SO_DAYS; 
-    time_t startTime, currentTime; 
+
    
     int shipIndex = atoi(argv[1]);   
     db = shmat(atoi(argv[2]), NULL, 0); TEST_ERROR; 
@@ -48,21 +47,14 @@ int main(int argc, char **argv) {
     TEST_ERROR;
 
     /* parte la simulazione */
-
-    while (handleProcess && dayRemains > 0) {
-
-        currentTime = time(NULL); 
-        if (currentTime - startTime >= 1) {
-            dayRemains--; 
-            startTime = currentTime; 
-        }
+    while (handleProcess && *dayRemains > 0) {
+        printTest(51);
         handleProcess = findPorts(&ship_list[shipIndex]); 
 
     } 
 
     pause(); 
 
-    printf("ci siamo dio can");
     /* scollego segmento memoria condivisa */
     /*  shmdt(db); */
     exit(EXIT_SUCCESS); /* termina il processo figlio */
@@ -143,7 +135,7 @@ int findPorts(ship* ship_list) {
     bzero(&sb, sizeof(struct sembuf ));
 
     
-    while (!findPorts || j < SO_PORTI) {
+    while (!findPorts && j < SO_PORTI) {
         for (i = 0; i < SO_PORTI; i++) {
            
             int found = 0; 
@@ -165,14 +157,14 @@ int findPorts(ship* ship_list) {
             }
         
         } 
+  
         portList = shmat(db[nearestPort_index].keyPortMemory, NULL, 0); TEST_ERROR; 
         offerList = shmat(portList->inventory.keyOffers, NULL, 0); TEST_ERROR; 
 
         for(i = 0; i < portList->inventory.counterGoodsOffer && !findPorts; i++) {         
 
+            if (offerList[i].life < (SO_DAYS - (*dayRemains))) {
 
-            if (offerList[i].life < (SO_DAYS - dayRemains)) {
-                
                 lots = shmat(offerList[i].keyLots, NULL, 0); 
 
                  for(c = 0; c < offerList[i].maxLoots && idGood == -1; c++) {
@@ -197,15 +189,17 @@ int findPorts(ship* ship_list) {
                 }
                 shmdt(lots); 
             }
-           
+           printTest(findPorts);
         }
+        printTest(194);
 
         if (!findPorts) {
             j++; 
         }
-      
+        shmdt(portList);      
+        shmdt(offerList); 
     }
-
+    printTest(202);
     if (findPorts) {
         ship_list->keyOffer = nearestPort_index; 
         finalLot->id_ship = ship_list->pid; 
@@ -217,8 +211,8 @@ int findPorts(ship* ship_list) {
         printf("PORTI NON TROVATI\n"); 
     }
 
-    shmdt(portList);
-    shmdt(offerList); 
+
+
    
     TEST_ERROR;
 
@@ -278,10 +272,11 @@ int loadLot(lot* lots, int idGood, ship* ship_list) {
     port = shmat(db[ship_list->keyOffer].keyPortMemory, NULL, 0); 
  
     decreaseSem(sops, port->sem_inventory_id, 1); 
-        if (lots->life < (SO_DAYS - dayRemains)) {
+        if (lots->life < (SO_DAYS - (*dayRemains))) {
             ship_list->statusCargo = 1; 
             done = 1; 
             lots->available = 0; 
+            printTest(280);
             lots->status = 1;
             ship_list->listGoods.idGood = idGood; 
         }    
@@ -333,7 +328,7 @@ void unloadLot(lot* lots, ship* ship_list) {
     /**
      * ? se la merce è scaduta la nave la non scarica e la butta 
     */
-    if (!(lots->life > (SO_DAYS - dayRemains))) {
+    if (!(lots->life > (SO_DAYS - (*dayRemains)))) {
         x = lots->value > port->inventory.request.remains ? 0 : port->inventory.request.remains - lots->value; 
         lots->status = 2;
         port->inventory.request.remains = x; 
