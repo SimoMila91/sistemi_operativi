@@ -13,8 +13,8 @@
 #include "../utility/utility.h"
 #include "porti.h"
 
-
-
+int numBytes;
+char *string;
 port* port_list;
 database* myData;   
 int shm_port; 
@@ -24,7 +24,7 @@ int shmid_offer;
 
 
 int main(int argc, char **argv) {
-    if(argc != 6){
+    if(argc != 7){
         printf("error argc");
     }
     int index = atoi(argv[1]);
@@ -46,6 +46,7 @@ int main(int argc, char **argv) {
     myData[index].keyPortMemory = shm_port; 
 
     initPort(index, totalOffer, totalRequest);
+
     struct sembuf sb; 
     decreaseSem(sb, semId, 0);
     waitForZero(sb, semId, 0);
@@ -58,7 +59,7 @@ int main(int argc, char **argv) {
 
 void initPort(int i, int totalOffer, int totalRequest) {
 
-
+    
     struct timespec t;
 
     switch (i) {
@@ -92,12 +93,16 @@ void initPort(int i, int totalOffer, int totalRequest) {
     myData[i].position.x = port_list->position.x; 
     myData[i].position.y = port_list->position.y; 
 
-    port_list->pid = getpid(); 
+    port_list->pid = getpid();
     port_list->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); /* assegno il semaforo per le banchine */
     TEST_ERROR;
     port_list->totalDocks = initDocksSemaphore(); /* inizializzo il semaforo per le banchine e salvo il numero di banchine */
-
     initializeInventory(totalOffer, totalRequest); 
+    string = malloc(100);
+    numBytes = sprintf(string, "IN PORTO pid %d :id %d--- q %d \n", port_list->pid, port_list->inventory.request.idGood, port_list->inventory.request.amount);
+    printTestDue(numBytes, string);
+    free(string);
+    //printf("IN PORTO  id %d--- q %d \n", port_list->inventory.request.idGood, port_list->inventory.request.amount);
 } 
 
 
@@ -232,18 +237,14 @@ int* getCasualWeightPort( int counter, int totalOffer) {
 int initDocksSemaphore() {
 
     int docks; 
+    struct timespec t;
+    clock_gettime(CLOCK_REALTIME, &t);
+    
+  
+    docks = (t.tv_nsec % SO_BANCHINE + 1); 
 
-    if (port_list->sem_docks_id == -1) {
-        perror("semget"); 
-        exit(EXIT_FAILURE); 
-    }
-
-    docks = (rand() % SO_BANCHINE + 1); 
-
-    if (semctl(port_list->sem_docks_id, 0, SETVAL, docks) == -1) {
-        perror("semctl"); 
-        exit(EXIT_FAILURE); 
-    }
+    semctl(port_list->sem_docks_id, 0, SETVAL, docks); TEST_ERROR;
+    
 
     return docks;
 }

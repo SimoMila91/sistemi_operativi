@@ -47,3 +47,10 @@ void printTest(int riga){
     write(1, string, numBytes); 
     free(string);
 }
+
+void printTestDue(int numBytes, char *string){
+    
+    fflush(stdout);
+    write(1, string, numBytes); 
+
+}

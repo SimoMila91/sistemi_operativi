@@ -15,7 +15,7 @@ export SO_SPEED=10
 # Max ship's capacity
 export SO_CAPACITY=100
 # Max number of docks 
-export SO_BANCHINE=3
+export SO_BANCHINE=10
 # Min number of ports 
 export SO_PORTI=4
 # Min number of ships

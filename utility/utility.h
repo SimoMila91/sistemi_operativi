@@ -5,5 +5,6 @@ void decreaseSem (struct sembuf sops, int sem_id, int sem_num); /* se offerta 1 
 void increaseSem (struct sembuf sops, int sem_id, int sem_num);
 void waitForZero (struct sembuf sops, int sem_id, int sem_num);
 void printTest(int riga);
+void printTestDue(int numBytes, char *string);
 
 #endif

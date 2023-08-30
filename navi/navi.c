@@ -169,10 +169,11 @@ int findPorts(ship* ship_list) {
 
                  for(c = 0; c < offerList[i].maxLoots && idGood == -1; c++) {
                 
-               
+                    
                     if (lots[c].available && lots[c].id_ship == -1 ) {
                         idGood = offerList[i].idGood; 
                         finalLot = &lots[c];    
+                        //printf("OFFERTA IN NAVE : lotto %d-> id %d-- q %d\n", c, idGood, lots[c].value);
                     }
                 
                 }
@@ -195,6 +196,7 @@ int findPorts(ship* ship_list) {
 
         if (!findPorts) {
             j++; 
+            distanzaMinima = -1;
         }
         shmdt(portList);      
         shmdt(offerList); 

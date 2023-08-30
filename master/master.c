@@ -362,9 +362,9 @@ void dumpSimulation(int type) {
     /*printTotalGoods(totalGoods, SO_MERCI+1);
     printf("Il numero di navi con il carico a bordo è: %d\n", shipWithCargo); 
     printf("Il numero di navi senza carico a bordo è: %d\n", shipWithoutCargo); 
-    printf("Il numero di navi presso un porto è: %d\n", shipToPort);  
+    printf("Il numero di navi presso un porto è: %d\n", shipToPort); */  
     printReportPorts(reportPorts, SO_PORTI);
-    */
+   
     /*if final simulation => */
     /*if (type) {
         printGoodsReport(goodsReport, SO_MERCI+1);
@@ -414,15 +414,15 @@ void printReportPorts(int **matrix, int lenght) {
 
     int i; 
 
-    printf("PID Porto | Presente Porto | Presente Nave | Spedita dal Porto | Ricevuta in Porto | Banchine Occupate | Banchine Totali\n");
+    printf("PID Porto | Presente Porto | Spedita dal Porto | Ricevuta in Porto | Banchine Occupate | Banchine Totali\n");
 
     // Stampa delle linee orizzontali prima dei dati
     printf("------------------------------------------------------------------------------------------------------------------------\n");
 
     // Stampa della tabella con i dati
     for (i = 0; i < lenght; i++) {
-        printf("%9d | %15d | %14d | %17d | %18d | %17d | %15d\n",
-            matrix[i][0], matrix[i][1], matrix[i][2], matrix[i][3], matrix[i][4], matrix[i][5], matrix[i][6]);
+        printf("%9d | %15d | %14d | %17d | %18d | %17d\n",
+            matrix[i][0], matrix[i][1], matrix[i][2], matrix[i][3], matrix[i][4], matrix[i][5]);
 
         // Stampa delle linee orizzontali tra le righe di dati
         printf("--------------------------------------------------------------------------------------------------------------------\n");
