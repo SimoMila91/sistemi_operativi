@@ -12,7 +12,8 @@
 #include "../utility/utility.h"
 #include "navi.h"
 
-
+int numBytes;
+char *string;
 ship* ship_list;  
 database* db;
 
@@ -48,7 +49,6 @@ int main(int argc, char **argv) {
 
     /* parte la simulazione */
     while (handleProcess && *dayRemains > 0) {
-        printTest(51);
         handleProcess = findPorts(&ship_list[shipIndex]); 
 
     } 
@@ -93,14 +93,18 @@ int moveToPort(char type, lot* lots, int idGood, ship* ship) {
     double dist; 
     double travelTime; 
     int done = 0;  
-    
-    dist = distance(ship_list->position, db[(type == 'o' ? ship_list->keyOffer : ship_list->keyRequest )].position); 
-    travelTime = dist / SO_SPEED; 
 
     struct timespec sleepTime; 
-    sleepTime.tv_sec = (int)travelTime; 
-    sleepTime.tv_nsec = (double) travelTime - (double)(int)travelTime; 
+    dist = distance(ship_list->position, db[(type == 'o' ? ship_list->keyOffer : ship_list->keyRequest )].position); 
+    travelTime = dist / SO_SPEED; 
+    sleepTime.tv_sec = (int) travelTime;
+    sleepTime.tv_nsec = (travelTime - ((int)travelTime))*1000000000;
 
+
+    string = malloc(100);
+    numBytes = sprintf(string, "pid %d travelt %f nsec %f sec %d\n",ship_list->pid,travelTime, sleepTime.tv_nsec, sleepTime.tv_sec);
+    printTestDue(numBytes, string);
+    free(string);
     nanosleep(&sleepTime, NULL); 
     TEST_ERROR; 
     ship->position.x = db[ship_list->keyOffer].position.x; 
@@ -163,8 +167,7 @@ int findPorts(ship* ship_list) {
 
         for(i = 0; i < portList->inventory.counterGoodsOffer && !findPorts; i++) {         
 
-            if (offerList[i].life < (SO_DAYS - (*dayRemains))) {
-
+            if (offerList[i].life >= (SO_DAYS - (*dayRemains))) {
                 lots = shmat(offerList[i].keyLots, NULL, 0); 
 
                  for(c = 0; c < offerList[i].maxLoots && idGood == -1; c++) {
@@ -172,7 +175,12 @@ int findPorts(ship* ship_list) {
                     
                     if (lots[c].available && lots[c].id_ship == -1 ) {
                         idGood = offerList[i].idGood; 
-                        finalLot = &lots[c];    
+                        finalLot = &lots[c];   
+                        string = malloc(100);
+                        numBytes = sprintf(string, "OFFERTA IN NAVE pidn %d pidP %d: lotto %d-> id %d-- q %d\n",getpid(), portList->pid, c, idGood, lots[c].value);
+                        printTestDue(numBytes, string);
+                        free(string);
+
                         //printf("OFFERTA IN NAVE : lotto %d-> id %d-- q %d\n", c, idGood, lots[c].value);
                     }
                 
@@ -182,6 +190,7 @@ int findPorts(ship* ship_list) {
                 if (idGood != -1) {
                     if (findRequestPort(idGood, finalLot, ship_list)) {
                         findPorts = 1;  
+                        printTest(189);
                         
                         break; 
                     } else {
@@ -190,9 +199,7 @@ int findPorts(ship* ship_list) {
                 }
                 shmdt(lots); 
             }
-           printTest(findPorts);
         }
-        printTest(194);
 
         if (!findPorts) {
             j++; 
@@ -201,8 +208,8 @@ int findPorts(ship* ship_list) {
         shmdt(portList);      
         shmdt(offerList); 
     }
-    printTest(202);
     if (findPorts) {
+        printTest(208);
         ship_list->keyOffer = nearestPort_index; 
         finalLot->id_ship = ship_list->pid; 
         done = moveToPort('o', finalLot, idGood, ship_list); 
@@ -210,7 +217,7 @@ int findPorts(ship* ship_list) {
              moveToPort('r', finalLot, idGood, ship_list); 
         }
     } else {
-        printf("PORTI NON TROVATI\n"); 
+        printTest(216); 
     }
 
 
@@ -233,11 +240,12 @@ int findRequestPort(int idGood, lot* lots, ship* ship_list) {
     for (i = 0; i < SO_PORTI && !found; i++) {
         portList = shmat(db[i].keyPortMemory, NULL, 0); TEST_ERROR;
         decreaseSem(sb, portList->sem_inventory_id, 0);
-        if (portList->inventory.request.idGood == idGood && (portList->inventory.request.remains - portList->inventory.request.requestBooked ) > 0) {
+        if (portList->inventory.request.idGood == idGood && (portList->inventory.request.remains - portList->inventory.request.requestBooked ) >= 0) {
             found = 1; 
         } 
         increaseSem(sb, portList->sem_inventory_id, 0);
         if (found) {
+            printTest(242);
             decreaseSem(sb, portList->sem_inventory_id, 0);
             ship_list->keyRequest = i; 
             portList->inventory.request.requestBooked += lots->value; 
@@ -278,7 +286,6 @@ int loadLot(lot* lots, int idGood, ship* ship_list) {
             ship_list->statusCargo = 1; 
             done = 1; 
             lots->available = 0; 
-            printTest(280);
             lots->status = 1;
             ship_list->listGoods.idGood = idGood; 
         }    

@@ -11,7 +11,7 @@ export SO_MAX_VITA=20
 # Map 
 export SO_LATO=100
 # Ship's speed 
-export SO_SPEED=10
+export SO_SPEED=20
 # Max ship's capacity
 export SO_CAPACITY=100
 # Max number of docks 

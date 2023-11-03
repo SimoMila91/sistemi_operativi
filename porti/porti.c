@@ -110,33 +110,31 @@ int isDuplicate(int numGood, int numOffer) {
 
     int found = 0; 
     int x; 
-
     for (x = 0; x < numOffer && !found; x++) {
         if (offerList[x].idGood == numGood) {
             found = 1; 
         }
     }
 
-
     return found; 
-} 
+}
 
 void initializeInventory(int totalOffer, int totalRequest) {
-
     int j; 
     int numGoodRequest; 
     int lifeTime;  
-    int counterGoodsOffer = rand() % SO_MERCI + 1; 
+    int counterGoodsOffer; 
     int found; /* tipo merce */
     int* casualAmountOffer; 
-
-
+    time_t t;
+    srand(getpid());
+    counterGoodsOffer = rand()% (SO_MERCI-1) + 1 ; 
     /* inizializzo la richiesta */
     numGoodRequest = rand() % SO_MERCI + 1; 
     port_list->inventory.request.idGood = numGoodRequest; 
     port_list->inventory.request.amount = totalRequest;  
     port_list->inventory.request.requestBooked = 0; 
-
+    port_list->inventory.request.remains = totalRequest;
     /* inizializzo l'offerta */ 
     port_list->inventory.counterGoodsOffer = counterGoodsOffer; 
     casualAmountOffer = getCasualWeightPort(counterGoodsOffer, totalOffer); 
@@ -149,9 +147,21 @@ void initializeInventory(int totalOffer, int totalRequest) {
     for (j = 0; j < counterGoodsOffer; j++) {
 
         found = rand() % SO_MERCI + 1; 
-        while(j != 0 && (isDuplicate(found, counterGoodsOffer) || found == numGoodRequest)){
-            found = rand() % SO_MERCI + 1; 
-        } 
+
+
+        
+        if (j == 0 ){
+            while( found == numGoodRequest){
+                found = rand() % SO_MERCI + 1; 
+
+            }
+        } else{
+            while(isDuplicate(found, counterGoodsOffer) || found == numGoodRequest){
+                found = rand() % SO_MERCI + 1; 
+            } 
+        }
+        
+
         offerList[j].idGood = found; 
         offerList[j].amount = casualAmountOffer[j];
         lifeTime = rand() % (SO_MAX_VITA + 1 - SO_MIN_VITA) + SO_MIN_VITA;

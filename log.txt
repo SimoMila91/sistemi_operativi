@@ -1,0 +1,196 @@
+gcc -pedantic -Wall -Wextra -c  navi/navi.c -o navi/navi.o -lm
+gcc -pedantic -Wall -Wextra utility/utility.o navi/navi.o -o navi/navi -lm
+./master/master
+IN PORTO pid 8325 :id 1--- q 28 
+IN PORTO pid 8327 :id 3--- q 130 
+IN PORTO pid 8326 :id 1--- q 206 
+IN PORTO pid 8328 :id 1--- q 134 
+fine init
+OFFERTA IN NAVE pidn 8332 pidP 8326: lotto 0-> id 6-- q 44
+OFFERTA IN NAVE pidn 8332 pidP 8326: lotto 0-> id 3-- q 2
+===========> 242
+===========> 189
+===========> 208
+fine init
+OFFERTA IN NAVE pidn 8329 pidP 8325: lotto 0-> id 6-- q 2
+OFFERTA IN NAVE pidn 8329 pidP 8325: lotto 0-> id 3-- q 3
+===========> 242
+===========> 189
+===========> 208
+pid 8329 travelt 2.114043 nsec 0.114043 sec 114043105
+fine init
+OFFERTA IN NAVE pidn 8330 pidP 8328: lotto 0-> id 6-- q 5
+OFFERTA IN NAVE pidn 8330 pidP 8328: lotto 0-> id 3-- q 14
+===========> 242
+===========> 189
+===========> 208
+pid 8329 travelt 2.114043 nsec 0.114043 sec 114043105
+fine init
+OFFERTA IN NAVE pidn 8333 pidP 8325: lotto 0-> id 6-- q 2
+OFFERTA IN NAVE pidn 8333 pidP 8325: lotto 0-> id 2-- q 6
+OFFERTA IN NAVE pidn 8333 pidP 8325: lotto 0-> id 5-- q 1
+OFFERTA IN NAVE pidn 8333 pidP 8325: lotto 0-> id 4-- q 1
+OFFERTA IN NAVE pidn 8333 pidP 8326: lotto 0-> id 6-- q 44
+OFFERTA IN NAVE pidn 8333 pidP 8326: lotto 0-> id 2-- q 15
+OFFERTA IN NAVE pidn 8333 pidP 8326: lotto 0-> id 5-- q 3
+OFFERTA IN NAVE pidn 8333 pidP 8326: lotto 0-> id 4-- q 40
+OFFERTA IN NAVE pidn 8333 pidP 8328: lotto 0-> id 6-- q 5
+OFFERTA IN NAVE pidn 8333 pidP 8328: lotto 0-> id 2-- q 20
+OFFERTA IN NAVE pidn 8333 pidP 8328: lotto 0-> id 5-- q 7
+OFFERTA IN NAVE pidn 8333 pidP 8328: lotto 0-> id 4-- q 10
+OFFERTA IN NAVE pidn 8333 pidP 8327: lotto 0-> id 6-- q 15
+OFFERTA IN NAVE pidn 8333 pidP 8327: lotto 0-> id 1-- q 41
+===========> 242
+===========> 189
+===========> 208
+pid 8329 travelt 2.114043 nsec 0.114043 sec 114043105
+fine init
+OFFERTA IN NAVE pidn 8331 pidP 8328: lotto 0-> id 6-- q 5
+OFFERTA IN NAVE pidn 8331 pidP 8328: lotto 0-> id 2-- q 20
+OFFERTA IN NAVE pidn 8331 pidP 8328: lotto 0-> id 5-- q 7
+OFFERTA IN NAVE pidn 8331 pidP 8328: lotto 0-> id 4-- q 10
+OFFERTA IN NAVE pidn 8331 pidP 8325: lotto 0-> id 6-- q 2
+OFFERTA IN NAVE pidn 8331 pidP 8325: lotto 0-> id 2-- q 6
+OFFERTA IN NAVE pidn 8331 pidP 8325: lotto 0-> id 5-- q 1
+OFFERTA IN NAVE pidn 8331 pidP 8325: lotto 0-> id 4-- q 1
+OFFERTA IN NAVE pidn 8331 pidP 8327: lotto 0-> id 6-- q 15
+OFFERTA IN NAVE pidn 8331 pidP 8327: lotto 0-> id 2-- q 11
+OFFERTA IN NAVE pidn 8331 pidP 8326: lotto 0-> id 6-- q 44
+OFFERTA IN NAVE pidn 8331 pidP 8326: lotto 0-> id 2-- q 15
+OFFERTA IN NAVE pidn 8331 pidP 8326: lotto 0-> id 5-- q 3
+OFFERTA IN NAVE pidn 8331 pidP 8326: lotto 0-> id 4-- q 40
+===========> 216
+PROVA
+DAY 5
+[ REPORT PROVVISORIO ]
+
+PID Porto | Presente Porto | Spedita dal Porto | Ricevuta in Porto | Banchine Occupate | Banchine Totali
+------------------------------------------------------------------------------------------------------------------------
+     8325 |              37 |              0 |                 0 |                  0 |                10
+--------------------------------------------------------------------------------------------------------------------
+     8326 |             295 |              0 |                 0 |                  0 |                 1
+--------------------------------------------------------------------------------------------------------------------
+     8327 |             175 |              0 |                 0 |                  0 |                 6
+--------------------------------------------------------------------------------------------------------------------
+     8328 |             170 |              0 |                 0 |                  0 |                 5
+--------------------------------------------------------------------------------------------------------------------
+FINE REPORT
+===========> 375
+DAY 4
+[ REPORT PROVVISORIO ]
+
+PID Porto | Presente Porto | Spedita dal Porto | Ricevuta in Porto | Banchine Occupate | Banchine Totali
+------------------------------------------------------------------------------------------------------------------------
+     8325 |              37 |              0 |                 0 |                  0 |                10
+--------------------------------------------------------------------------------------------------------------------
+     8326 |             295 |              0 |                 0 |                  0 |                 1
+--------------------------------------------------------------------------------------------------------------------
+     8327 |             175 |              0 |                 0 |                  0 |                 6
+--------------------------------------------------------------------------------------------------------------------
+     8328 |             170 |              0 |                 0 |                  0 |                 5
+--------------------------------------------------------------------------------------------------------------------
+FINE REPORT
+===========> 375
+OFFERTA IN NAVE pidn 8329 pidP 8325: lotto 0-> id 6-- q 2
+OFFERTA IN NAVE pidn 8330 pidP 8325: lotto 0-> id 6-- q 2
+OFFERTA IN NAVE pidn 8329 pidP 8325: lotto 0-> id 2-- q 6
+OFFERTA IN NAVE pidn 8329 pidP 8325: lotto 0-> id 5-- q 1
+OFFERTA IN NAVE pidn 8330 pidP 8325: lotto 0-> id 2-- q 6
+OFFERTA IN NAVE pidn 8329 pidP 8325: lotto 0-> id 4-- q 1
+OFFERTA IN NAVE pidn 8330 pidP 8325: lotto 0-> id 5-- q 1
+OFFERTA IN NAVE pidn 8329 pidP 8326: lotto 0-> id 6-- q 44
+OFFERTA IN NAVE pidn 8330 pidP 8325: lotto 0-> id 4-- q 1
+OFFERTA IN NAVE pidn 8329 pidP 8326: lotto 0-> id 2-- q 15
+OFFERTA IN NAVE pidn 8330 pidP 8326: lotto 0-> id 6-- q 44
+OFFERTA IN NAVE pidn 8329 pidP 8326: lotto 0-> id 5-- q 3
+OFFERTA IN NAVE pidn 8330 pidP 8326: lotto 0-> id 2-- q 15
+OFFERTA IN NAVE pidn 8329 pidP 8326: lotto 0-> id 4-- q 40
+OFFERTA IN NAVE pidn 8330 pidP 8326: lotto 0-> id 5-- q 3
+OFFERTA IN NAVE pidn 8329 pidP 8328: lotto 0-> id 6-- q 5
+OFFERTA IN NAVE pidn 8330 pidP 8326: lotto 0-> id 4-- q 40
+OFFERTA IN NAVE pidn 8329 pidP 8328: lotto 0-> id 2-- q 20
+OFFERTA IN NAVE pidn 8329 pidP 8328: lotto 0-> id 5-- q 7
+OFFERTA IN NAVE pidn 8330 pidP 8328: lotto 0-> id 6-- q 5
+OFFERTA IN NAVE pidn 8329 pidP 8328: lotto 0-> id 4-- q 10
+OFFERTA IN NAVE pidn 8330 pidP 8328: lotto 0-> id 2-- q 20
+OFFERTA IN NAVE pidn 8329 pidP 8327: lotto 0-> id 6-- q 15
+OFFERTA IN NAVE pidn 8330 pidP 8328: lotto 0-> id 5-- q 7
+OFFERTA IN NAVE pidn 8330 pidP 8328: lotto 0-> id 4-- q 10
+OFFERTA IN NAVE pidn 8329 pidP 8327: lotto 0-> id 2-- q 11
+===========> 216
+OFFERTA IN NAVE pidn 8330 pidP 8327: lotto 0-> id 6-- q 15
+OFFERTA IN NAVE pidn 8330 pidP 8327: lotto 0-> id 2-- q 11
+===========> 216
+OFFERTA IN NAVE pidn 8333 pidP 8325: lotto 0-> id 6-- q 2
+OFFERTA IN NAVE pidn 8333 pidP 8325: lotto 0-> id 2-- q 6
+OFFERTA IN NAVE pidn 8333 pidP 8325: lotto 0-> id 5-- q 1
+OFFERTA IN NAVE pidn 8333 pidP 8325: lotto 0-> id 4-- q 1
+OFFERTA IN NAVE pidn 8333 pidP 8326: lotto 0-> id 6-- q 44
+OFFERTA IN NAVE pidn 8333 pidP 8326: lotto 0-> id 2-- q 15
+OFFERTA IN NAVE pidn 8333 pidP 8326: lotto 0-> id 5-- q 3
+OFFERTA IN NAVE pidn 8333 pidP 8326: lotto 0-> id 4-- q 40
+OFFERTA IN NAVE pidn 8333 pidP 8328: lotto 0-> id 6-- q 5
+OFFERTA IN NAVE pidn 8333 pidP 8328: lotto 0-> id 2-- q 20
+OFFERTA IN NAVE pidn 8333 pidP 8328: lotto 0-> id 5-- q 7
+OFFERTA IN NAVE pidn 8333 pidP 8328: lotto 0-> id 4-- q 10
+OFFERTA IN NAVE pidn 8333 pidP 8327: lotto 0-> id 6-- q 15
+OFFERTA IN NAVE pidn 8333 pidP 8327: lotto 0-> id 2-- q 11
+===========> 216
+DAY 3
+[ REPORT PROVVISORIO ]
+
+PID Porto | Presente Porto | Spedita dal Porto | Ricevuta in Porto | Banchine Occupate | Banchine Totali
+------------------------------------------------------------------------------------------------------------------------
+     8325 |              37 |              0 |                 0 |                  0 |                10
+--------------------------------------------------------------------------------------------------------------------
+     8326 |             295 |              0 |                 0 |                  0 |                 1
+--------------------------------------------------------------------------------------------------------------------
+     8327 |             175 |              0 |                 0 |                  0 |                 6
+--------------------------------------------------------------------------------------------------------------------
+     8328 |             170 |              0 |                 0 |                  0 |                 5
+--------------------------------------------------------------------------------------------------------------------
+FINE REPORT
+===========> 375
+DAY 2
+[ REPORT PROVVISORIO ]
+
+PID Porto | Presente Porto | Spedita dal Porto | Ricevuta in Porto | Banchine Occupate | Banchine Totali
+------------------------------------------------------------------------------------------------------------------------
+     8325 |              37 |              0 |                 0 |                  0 |                10
+--------------------------------------------------------------------------------------------------------------------
+     8326 |             295 |              0 |                 0 |                  0 |                 1
+--------------------------------------------------------------------------------------------------------------------
+     8327 |             175 |              0 |                 0 |                  0 |                 6
+--------------------------------------------------------------------------------------------------------------------
+     8328 |             170 |              0 |                 0 |                  0 |                 5
+--------------------------------------------------------------------------------------------------------------------
+FINE REPORT
+===========> 375
+DAY 1
+[ REPORT PROVVISORIO ]
+
+PID Porto | Presente Porto | Spedita dal Porto | Ricevuta in Porto | Banchine Occupate | Banchine Totali
+------------------------------------------------------------------------------------------------------------------------
+     8325 |              37 |              0 |                 0 |                  0 |                10
+--------------------------------------------------------------------------------------------------------------------
+     8326 |             295 |              0 |                 0 |                  0 |                 1
+--------------------------------------------------------------------------------------------------------------------
+     8327 |             175 |              0 |                 0 |                  0 |                 6
+--------------------------------------------------------------------------------------------------------------------
+     8328 |             170 |              0 |                 0 |                  0 |                 5
+--------------------------------------------------------------------------------------------------------------------
+FINE REPORT
+===========> 375
+fine master
+PID Porto | Presente Porto | Spedita dal Porto | Ricevuta in Porto | Banchine Occupate | Banchine Totali
+------------------------------------------------------------------------------------------------------------------------
+     8325 |              37 |              0 |                 0 |                  0 |                10
+--------------------------------------------------------------------------------------------------------------------
+     8326 |             295 |              0 |                 0 |                  0 |                 1
+--------------------------------------------------------------------------------------------------------------------
+     8327 |             175 |              0 |                 0 |                  0 |                 6
+--------------------------------------------------------------------------------------------------------------------
+     8328 |             170 |              0 |                 0 |                  0 |                 5
+--------------------------------------------------------------------------------------------------------------------
+FINE REPORT
+===========> 375
