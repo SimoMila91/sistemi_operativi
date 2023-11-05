@@ -95,17 +95,24 @@ int moveToPort(char type, lot* lots, int idGood, ship* ship) {
     int done = 0;  
 
     struct timespec sleepTime; 
+   
+    
+
     dist = distance(ship_list->position, db[(type == 'o' ? ship_list->keyOffer : ship_list->keyRequest )].position); 
     travelTime = dist / SO_SPEED; 
-    sleepTime.tv_sec = (int) travelTime;
-    sleepTime.tv_nsec = (travelTime - ((int)travelTime))*1000000000;
+     
+    sleepTime.tv_sec = (int)travelTime; 
+    sleepTime.tv_nsec = (travelTime - (int)sleepTime.tv_sec) * 1000000000; 
 
 
     string = malloc(100);
-    numBytes = sprintf(string, "pid %d travelt %f nsec %f sec %d\n",ship_list->pid,travelTime, sleepTime.tv_nsec, sleepTime.tv_sec);
+    numBytes = sprintf(string, "pid %d travelt %f nsec %ld sec %ld\n",ship_list->pid,travelTime, sleepTime.tv_nsec, sleepTime.tv_sec);
     printTestDue(numBytes, string);
     free(string);
-    nanosleep(&sleepTime, NULL); 
+    int result = nanosleep(&sleepTime, NULL); 
+    if (result == 0) {
+        printTest(110022);
+    }
     TEST_ERROR; 
     ship->position.x = db[ship_list->keyOffer].position.x; 
     ship->position.y = db[ship_list->keyOffer].position.y;  
@@ -169,8 +176,9 @@ int findPorts(ship* ship_list) {
 
             if (offerList[i].life >= (SO_DAYS - (*dayRemains))) {
                 lots = shmat(offerList[i].keyLots, NULL, 0); 
-
+                printTest(offerList[i].maxLoots); 
                  for(c = 0; c < offerList[i].maxLoots && idGood == -1; c++) {
+                    
                 
                     
                     if (lots[c].available && lots[c].id_ship == -1 ) {
@@ -275,14 +283,32 @@ int loadLot(lot* lots, int idGood, ship* ship_list) {
     int tempoCaricamento = quantita / SO_SPEED;
     struct timespec sleepTime;
     sleepTime.tv_sec = tempoCaricamento;
-    sleepTime.tv_nsec = (tempoCaricamento - tempoCaricamento) * 1e9;
+    sleepTime.tv_nsec = (tempoCaricamento - sleepTime.tv_sec) * 1e9;
 
     bzero(&sops, sizeof(struct sembuf)); /* mette a zero tutti i valori di una struttura e serve per non rischiare di dare inf sbagliate alla semop */
 
     port = shmat(db[ship_list->keyOffer].keyPortMemory, NULL, 0); 
- 
+
+    printTest(1010); 
+    printTest(lots->life); 
+    printTest(1010); 
+    printTest(1111); 
+    printTest((SO_DAYS - (*dayRemains)));
+    printTest(1111); 
+    /**
+     * TODO: ERRORE
+     * 
+     * 
+    */
+    printTest(1113); 
+    printTest(lots->life);
+    printTest(1113); 
+    printTest(1112); 
+    printTest((lots->life < (SO_DAYS - (*dayRemains))));
+    printTest(1112); 
+
     decreaseSem(sops, port->sem_inventory_id, 1); 
-        if (lots->life < (SO_DAYS - (*dayRemains))) {
+        if (lots->life > (SO_DAYS - (*dayRemains))) {
             ship_list->statusCargo = 1; 
             done = 1; 
             lots->available = 0; 
@@ -293,7 +319,7 @@ int loadLot(lot* lots, int idGood, ship* ship_list) {
 
     if (done) {
 
-         ship_list->statusPosition = 1;
+        ship_list->statusPosition = 1;
 
         decreaseSem(sops, port->sem_docks_id, 0); 
 
@@ -313,10 +339,10 @@ void unloadLot(lot* lots, ship* ship_list) {
     int x; 
     port* port; 
     int quantita = lots->value;
-    int tempoCaricamento = quantita / SO_SPEED;
+    unsigned int tempoCaricamento = quantita / SO_SPEED;
     struct timespec sleepTime;
     sleepTime.tv_sec = tempoCaricamento;
-    sleepTime.tv_nsec = (tempoCaricamento - tempoCaricamento) * 1e9;
+    sleepTime.tv_nsec = (tempoCaricamento - sleepTime.tv_sec) * 1e9;
 
     ship_list->statusPosition = 1; 
 
@@ -335,9 +361,10 @@ void unloadLot(lot* lots, ship* ship_list) {
     ship_list->statusPosition = 0; 
 
     /**
-     * ? se la merce è scaduta la nave la non scarica e la butta 
+     * ? se la merce è scaduta la nave la butta 
     */
-    if (!(lots->life > (SO_DAYS - (*dayRemains)))) {
+    
+    if (!(lots->life < (SO_DAYS - (*dayRemains)))) {
         x = lots->value > port->inventory.request.remains ? 0 : port->inventory.request.remains - lots->value; 
         lots->status = 2;
         port->inventory.request.remains = x; 

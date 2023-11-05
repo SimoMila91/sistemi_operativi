@@ -15,7 +15,6 @@ master/master.o: utility/utility.o master/master.c
 	$(CC) $(CFLAGS) -c  master/master.c -o master/master.o -lm
 utility/utility.o: 
 	$(CC) $(CFLAGS) -c utility/utility.c -o utility/utility.o -lm
-
 clean: 
 	rm -f utility/utility navi/navi porti/porti master/master utility/*.o navi/*.o porti/*.o master/*.o
 run: all 
