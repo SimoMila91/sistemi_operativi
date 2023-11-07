@@ -50,7 +50,6 @@ int main(int argc, char **argv) {
     /* parte la simulazione */
     while (handleProcess && *dayRemains > 0) {
         handleProcess = findPorts(&ship_list[shipIndex]); 
-
     } 
 
     pause(); 
@@ -95,8 +94,6 @@ int moveToPort(char type, lot* lots, int idGood, ship* ship) {
     int done = 0;  
 
     struct timespec sleepTime; 
-   
-    
 
     dist = distance(ship_list->position, db[(type == 'o' ? ship_list->keyOffer : ship_list->keyRequest )].position); 
     travelTime = dist / SO_SPEED; 
@@ -104,23 +101,15 @@ int moveToPort(char type, lot* lots, int idGood, ship* ship) {
     sleepTime.tv_sec = (int)travelTime; 
     sleepTime.tv_nsec = (travelTime - (int)sleepTime.tv_sec) * 1000000000; 
 
-
-    string = malloc(100);
-    numBytes = sprintf(string, "pid %d travelt %f nsec %ld sec %ld\n",ship_list->pid,travelTime, sleepTime.tv_nsec, sleepTime.tv_sec);
-    printTestDue(numBytes, string);
-    free(string);
-    int result = nanosleep(&sleepTime, NULL); 
-    if (result == 0) {
-        printTest(110022);
-    }
+    
+    nanosleep(&sleepTime, NULL); 
     TEST_ERROR; 
-    ship->position.x = db[ship_list->keyOffer].position.x; 
-    ship->position.y = db[ship_list->keyOffer].position.y;  
-    if (type == 'o') 
-       done = loadLot(lots, idGood, ship);
-    else 
+    
+    if (type == 'o') { 
+        done = loadLot(lots, idGood, ship);
+    } else {
         unloadLot(lots, ship); 
-
+    }
     return done; 
 
 }
@@ -176,7 +165,6 @@ int findPorts(ship* ship_list) {
 
             if (offerList[i].life >= (SO_DAYS - (*dayRemains))) {
                 lots = shmat(offerList[i].keyLots, NULL, 0); 
-                printTest(offerList[i].maxLoots); 
                  for(c = 0; c < offerList[i].maxLoots && idGood == -1; c++) {
                     
                 
@@ -184,11 +172,6 @@ int findPorts(ship* ship_list) {
                     if (lots[c].available && lots[c].id_ship == -1 ) {
                         idGood = offerList[i].idGood; 
                         finalLot = &lots[c];   
-                        string = malloc(100);
-                        numBytes = sprintf(string, "OFFERTA IN NAVE pidn %d pidP %d: lotto %d-> id %d-- q %d\n",getpid(), portList->pid, c, idGood, lots[c].value);
-                        printTestDue(numBytes, string);
-                        free(string);
-
                         //printf("OFFERTA IN NAVE : lotto %d-> id %d-- q %d\n", c, idGood, lots[c].value);
                     }
                 
@@ -198,7 +181,6 @@ int findPorts(ship* ship_list) {
                 if (idGood != -1) {
                     if (findRequestPort(idGood, finalLot, ship_list)) {
                         findPorts = 1;  
-                        printTest(189);
                         
                         break; 
                     } else {
@@ -217,19 +199,15 @@ int findPorts(ship* ship_list) {
         shmdt(offerList); 
     }
     if (findPorts) {
-        printTest(208);
         ship_list->keyOffer = nearestPort_index; 
         finalLot->id_ship = ship_list->pid; 
         done = moveToPort('o', finalLot, idGood, ship_list); 
         if (done)  { /* se la merce è scaduta e quindi non è stata caricata non si muove verso la richiesta */
-             moveToPort('r', finalLot, idGood, ship_list); 
+            moveToPort('r', finalLot, idGood, ship_list); 
         }
     } else {
         printTest(216); 
     }
-
-
-
    
     TEST_ERROR;
 
@@ -289,24 +267,6 @@ int loadLot(lot* lots, int idGood, ship* ship_list) {
 
     port = shmat(db[ship_list->keyOffer].keyPortMemory, NULL, 0); 
 
-    printTest(1010); 
-    printTest(lots->life); 
-    printTest(1010); 
-    printTest(1111); 
-    printTest((SO_DAYS - (*dayRemains)));
-    printTest(1111); 
-    /**
-     * TODO: ERRORE
-     * 
-     * 
-    */
-    printTest(1113); 
-    printTest(lots->life);
-    printTest(1113); 
-    printTest(1112); 
-    printTest((lots->life < (SO_DAYS - (*dayRemains))));
-    printTest(1112); 
-
     decreaseSem(sops, port->sem_inventory_id, 1); 
         if (lots->life > (SO_DAYS - (*dayRemains))) {
             ship_list->statusCargo = 1; 
@@ -329,6 +289,7 @@ int loadLot(lot* lots, int idGood, ship* ship_list) {
         
         ship_list->statusPosition = 0; 
     }
+    ship_list->position = db[ship_list->keyOffer].position;
 
     return done; 
 }
@@ -359,12 +320,13 @@ void unloadLot(lot* lots, ship* ship_list) {
     decreaseSem(sops, port->sem_inventory_id, 0); 
 
     ship_list->statusPosition = 0; 
+    ship_list->position = db[ship_list->keyRequest].position;
 
     /**
      * ? se la merce è scaduta la nave la butta 
     */
     
-    if (!(lots->life < (SO_DAYS - (*dayRemains)))) {
+    if ((lots->life > (SO_DAYS - (*dayRemains)))) {
         x = lots->value > port->inventory.request.remains ? 0 : port->inventory.request.remains - lots->value; 
         lots->status = 2;
         port->inventory.request.remains = x; 

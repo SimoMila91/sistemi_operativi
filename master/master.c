@@ -159,8 +159,8 @@ void killProcess(){
 
 void alarmHandler(int signum) {
     //printf("%d", signum); /*da cancellare*/
-    if(signum == SIGINT) ;
-    printf("DAY %d\n", *daysRemains);
+    if(signum == SIGINT)
+        printf("DAY %d\n", *daysRemains);
     if (*daysRemains > 0) {
         // dump giornaliero 
         printf("[ REPORT PROVVISORIO ]\n\n"); 
