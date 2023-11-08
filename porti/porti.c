@@ -33,6 +33,7 @@ int main(int argc, char **argv) {
     int totalOffer = atoi(argv[3]); 
     int totalRequest = atoi(argv[4]); 
     int semId = atoi(argv[5]); 
+    
 
     /* creo memoria condivisa per il porto */
     shm_port = createSharedMemory(sizeof(port) * 1); TEST_ERROR;
@@ -43,9 +44,10 @@ int main(int argc, char **argv) {
     semctl(port_list->sem_inventory_id, 1, SETVAL, 1); /* semaforo offerta */
     TEST_ERROR; 
     
-    myData[index].keyPortMemory = shm_port; 
+    myData[index].keyPortMemory = shm_port;
 
     initPort(index, totalOffer, totalRequest);
+
 
     struct sembuf sb; 
     decreaseSem(sb, semId, 0);
@@ -59,7 +61,6 @@ int main(int argc, char **argv) {
 
 void initPort(int i, int totalOffer, int totalRequest) {
 
-    
     struct timespec t;
 
     switch (i) {
@@ -145,7 +146,6 @@ void initializeInventory(int totalOffer, int totalRequest) {
     port_list->inventory.keyOffers = shmid_offer; 
 
     for (j = 0; j < counterGoodsOffer; j++) {
-
         found = rand() % SO_MERCI + 1; 
 
 
@@ -157,6 +157,7 @@ void initializeInventory(int totalOffer, int totalRequest) {
             }
         } else{
             while(isDuplicate(found, counterGoodsOffer) || found == numGoodRequest){
+
                 found = rand() % SO_MERCI + 1; 
             } 
         }
@@ -168,8 +169,8 @@ void initializeInventory(int totalOffer, int totalRequest) {
         offerList[j].life = lifeTime; 
 
         /* creo una memoria condivisa per i lotti */
+
         createLoots(casualAmountOffer[j], j, lifeTime, found); 
-      
                
     }
     
@@ -185,21 +186,26 @@ void createLoots(int amount, int index, int lifetime, int idGood) {
     int carico;  
     struct timespec t;
 
+
     clock_gettime(CLOCK_REALTIME, &t);
     lotSize = t.tv_nsec% SO_SIZE + 1; 
+
     while (lotSize > amount) {
-        clock_gettime(CLOCK_REALTIME, &t);
+
+        
         lotSize = t.tv_nsec% SO_SIZE + 1; 
     }
-
     maxLoots = amount / lotSize + 1; 
-    offerList[index].semLot = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); 
-    initLotSemaphore(maxLoots, index); 
+    offerList[index].semLot = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); TEST_ERROR;
+ 
+    initLotSemaphore(maxLoots, index); TEST_ERROR;
     offerList[index].maxLoots = maxLoots;
     offerList[index].keyLots = createSharedMemory(sizeof(lot) * maxLoots); 
 
-    lots = shmat(offerList[index].keyLots, NULL, 0);  
+                
 
+
+    lots = shmat(offerList[index].keyLots, NULL, 0);  
     for (i = 0; i < maxLoots-1; i++) {
         lots[i].value = lotSize; 
         lots[i].available = 1; 
@@ -225,7 +231,7 @@ int* getCasualWeightPort( int counter, int totalOffer) {
         int i;
         srand(time(NULL));
         for(i=0; i<counter; i++){
-            offer[i] = rand()%totalOffer+1;
+            offer[i] = rand()%1000+1;
             sum += offer[i];
             
 
@@ -233,6 +239,7 @@ int* getCasualWeightPort( int counter, int totalOffer) {
 
         for(i=0; i<counter; i++){
             offer[i] = (totalOffer * offer[i])/ sum;
+
             /*resto -= offer[i];*/
             if(offer[i] == 0) offer[i]++;
         

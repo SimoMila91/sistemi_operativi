@@ -11,17 +11,17 @@ export SO_MAX_VITA=20
 # Map 
 export SO_LATO=100
 # Ship's speed 
-export SO_SPEED=500
+export SO_SPEED=100
 # Max ship's capacity
 export SO_CAPACITY=100
 # Max number of docks 
-export SO_BANCHINE=10
+export SO_BANCHINE=1
 # Min number of ports 
-export SO_PORTI=4
+export SO_PORTI=15
 # Min number of ships
-export SO_NAVI=5
+export SO_NAVI=
 # Number of supply and demand 
-export SO_FILL=500
+export SO_FILL=1000000
 # Time of execution 
 export SO_DAYS=10
 

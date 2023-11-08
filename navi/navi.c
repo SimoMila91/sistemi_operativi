@@ -29,13 +29,14 @@ int main(int argc, char **argv) {
    
     ship_list = shmat(atoi(argv[3]), NULL, 0); TEST_ERROR;
     dayRemains = shmat(atoi(argv[6]), NULL, 0); TEST_ERROR;
-
+    msg_id = shmat(atoi(argv[7]), NULL, 0); TEST_ERROR;
 
    
     int shipIndex = atoi(argv[1]);   
     db = shmat(atoi(argv[2]), NULL, 0); TEST_ERROR; 
     
     initShip(&ship_list[shipIndex]); 
+
     printf("fine init\n");
     struct sembuf sb; 
     bzero(&sb, sizeof(struct sembuf ));

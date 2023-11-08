@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/msg.h>
 #include "../macro/macro.h"
 #include "../utility/utility.h"
 #include "master.h"
@@ -29,7 +30,7 @@ int* daysRemains;
 int main() {
 
     int i;
-    char* args[8];
+    char* args[9];
     char idx_port[3*sizeof(int)+1];
     char idx_ship[3*sizeof(int)+1];
     char shmid_port_str[3*sizeof(int)+1]; 
@@ -39,12 +40,17 @@ int main() {
     char keySemMaster[3*sizeof(int)+1]; 
     char name_file[10];
     char shimd_days_str[3*sizeof(int)+1];
+    char msg_id_str[3*sizeof(int)+1];
     int* offerArray; 
     int* requestArray; 
     int semStartSimulation; 
     int shmid_day = shmget(IPC_PRIVATE, sizeof(int), 0600|IPC_CREAT); TEST_ERROR;
+    int msg_id;
     daysRemains = shmat(shmid_day, NULL, 0);
     *daysRemains = SO_DAYS;
+    msg_id = msgget(getpid(), IPC_CREAT | IPC_EXCL | 0600); TEST_ERROR;
+    sprintf(msg_id_str,"%d", msg_id);
+    
     sprintf(shimd_days_str, "%d", shmid_day);
     semStartSimulation =  semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo
     TEST_ERROR;
@@ -103,7 +109,8 @@ int main() {
     shipList = shmat(shmid_ship, NULL, 0); TEST_ERROR;
     sprintf(shmid_ship_str, "%d", shmid_ship);
     args[3] = shmid_ship_str;
-
+    args[7] = msg_id_str;
+    args[8] = NULL;
     for(i = 0; i < SO_NAVI; i++) {
         pid_t pid = fork(); TEST_ERROR;
         switch (pid)
@@ -477,22 +484,24 @@ void printMaxPort(int **matrixOffer, int **matrixRequest, int lenght) {
 /* FINE METODI PER LA STAMPA*/
 
 int* getCasualWeight() {
-
+    printTest(480);
     int *offer = (int*)malloc(SO_PORTI * sizeof(int));
     int sum = 0;
     int i;
 
     srand(time(NULL));
     for(i=0; i<SO_PORTI; i++){
-        offer[i] = rand()%SO_FILL+1;
+        offer[i] = rand()%1000+1;
         sum += offer[i];
     }
 
     for(i=0; i<SO_PORTI; i++){
         offer[i] = (SO_FILL * offer[i])/ sum;
+        if (offer[i] < 0) printTest(488);
         /*resto -= offer[i];*/
         if(offer[i] == 0) offer[i]++;
     }
+    printTest(497);
     return offer; 
 }
 
