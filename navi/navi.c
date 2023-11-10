@@ -24,12 +24,14 @@ int main(int argc, char **argv) {
     
     int handleProcess = 1;
     int semId = atoi(argv[5]); 
+    int msg_id;
+    int stop = 0;
     if(argc == 0) printf("errore\n");
 
    
     ship_list = shmat(atoi(argv[3]), NULL, 0); TEST_ERROR;
     dayRemains = shmat(atoi(argv[6]), NULL, 0); TEST_ERROR;
-    msg_id = shmat(atoi(argv[7]), NULL, 0); TEST_ERROR;
+    //msg_id = shmat(atoi(argv[7]), NULL, 0); TEST_ERROR;
 
    
     int shipIndex = atoi(argv[1]);   
@@ -49,8 +51,15 @@ int main(int argc, char **argv) {
     TEST_ERROR;
 
     /* parte la simulazione */
-    while (handleProcess && *dayRemains > 0) {
-        handleProcess = findPorts(&ship_list[shipIndex]); 
+    while (handleProcess && *dayRemains > 0 && !stop) {
+        /*if(checkEconomy()){*/
+            handleProcess = findPorts(&ship_list[shipIndex]);             
+        /*} 
+        else{
+            stop = 1;
+            msgsnd(msgget(getppid(), 0600), &stop, sizeof(int), 0);
+        }*/
+
     } 
 
     pause(); 
@@ -232,7 +241,6 @@ int findRequestPort(int idGood, lot* lots, ship* ship_list) {
         } 
         increaseSem(sb, portList->sem_inventory_id, 0);
         if (found) {
-            printTest(242);
             decreaseSem(sb, portList->sem_inventory_id, 0);
             ship_list->keyRequest = i; 
             portList->inventory.request.requestBooked += lots->value; 
@@ -339,16 +347,14 @@ void unloadLot(lot* lots, ship* ship_list) {
     increaseSem(sops, port->sem_inventory_id, 0); 
 
 }
-/**
- * 
- * 
-int checkEconomy() {
+
+/*int checkEconomy() {
     
     int i; 
     int j; 
     int k;
     int foundRequest = 0; 
-    int res; 
+    int res =0; 
     int l; 
     port* currentPort;  
     good* offerList; 
@@ -400,6 +406,6 @@ int checkEconomy() {
     }
 
     return res;  
-}
+}*/
 
-*/
+

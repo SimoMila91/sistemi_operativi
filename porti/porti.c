@@ -231,7 +231,12 @@ int* getCasualWeightPort( int counter, int totalOffer) {
         int i;
         srand(time(NULL));
         for(i=0; i<counter; i++){
-            offer[i] = rand()%1000+1;
+            if(SO_FILL < 1000){
+                offer[i] = rand()%SO_FILL+1;
+            }
+            else{
+                offer[i] = rand()%1000+1;
+            }
             sum += offer[i];
             
 

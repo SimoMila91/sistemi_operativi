@@ -44,6 +44,7 @@ int main() {
     int* offerArray; 
     int* requestArray; 
     int semStartSimulation; 
+    int rcv = -1;
     int shmid_day = shmget(IPC_PRIVATE, sizeof(int), 0600|IPC_CREAT); TEST_ERROR;
     int msg_id;
     daysRemains = shmat(shmid_day, NULL, 0);
@@ -137,14 +138,15 @@ int main() {
     waitForZero(sb, semStartSimulation, 0);
     printf("PROVA\n");
     // inizializzazione simulazione 
-    while(*daysRemains > 0) { 
+    while(*daysRemains > 0 && rcv == -1)  { 
 
         alarm(1); 
-        pause();  // franco pippo 
+        rcv = msgrcv(msg_id, NULL, sizeof(int), 0, 0);
     }
     printf("fine master\n"); 
     // REPORT FINALE 
-    dumpSimulation(1); 
+
+    dumpSimulation(*daysRemains == 0 ? 1 : rcv); 
     killProcess();
 }
 
@@ -266,7 +268,7 @@ void dumpSimulation(int type) {
 
 
     /* totalGoods ports and ships */
-
+    if (type == sizeof(int)) printf("non ci sono più richieste soddisfacibili\n");
     for (i = 0; i < SO_PORTI; i++) {
 
         currentPort = shmat(portList[i].keyPortMemory, NULL, 1); 
@@ -373,11 +375,11 @@ void dumpSimulation(int type) {
     printReportPorts(reportPorts, SO_PORTI);
    
     /*if final simulation => */
-    /*if (type) {
+    if (type) {
         printGoodsReport(goodsReport, SO_MERCI+1);
         printMaxPort(maxOfferPort, maxRequestPort, SO_MERCI+1); 
 
-    }*/
+    }
     printf("FINE REPORT\n");
     printTest(375);
 }
@@ -491,13 +493,17 @@ int* getCasualWeight() {
 
     srand(time(NULL));
     for(i=0; i<SO_PORTI; i++){
-        offer[i] = rand()%1000+1;
-        sum += offer[i];
+        if(SO_FILL < 1000){
+            offer[i] = rand()%SO_FILL+1; 
+        }
+        else{
+            offer[i] = rand()%1000+1;
+        }
+        sum += offer[i]; 
     }
 
     for(i=0; i<SO_PORTI; i++){
         offer[i] = (SO_FILL * offer[i])/ sum;
-        if (offer[i] < 0) printTest(488);
         /*resto -= offer[i];*/
         if(offer[i] == 0) offer[i]++;
     }
