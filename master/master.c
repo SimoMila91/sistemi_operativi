@@ -142,6 +142,10 @@ int main() {
 
         alarm(1); 
         rcv = msgrcv(msg_id, NULL, sizeof(int), 0, 0);
+            printTest(666);
+            printTest(rcv);  
+            printTest(666);
+
     }
     printf("fine master\n"); 
     // REPORT FINALE 
@@ -175,8 +179,9 @@ void alarmHandler(int signum) {
         printf("[ REPORT PROVVISORIO ]\n\n"); 
       
         dumpSimulation(0); 
+        *daysRemains-= 1; 
     } 
-    *daysRemains-= 1; 
+   
 }
 
 void dumpSimulation(int type) { 
@@ -449,7 +454,7 @@ void printGoodsReport(int **matrix, int lenght) {
 
     // Stampa della tabella con i dati
     for (i = 1; i < lenght; i++) {
-        printf("%4d | %16d | %13d | %16d | %15d | %10d\n",
+        printf("%8d | %17d | %13d | %16d | %15d | %10d\n",
             i,
             matrix[i][0],
             matrix[i][1],
@@ -472,7 +477,7 @@ void printMaxPort(int **matrixOffer, int **matrixRequest, int lenght) {
     printf("------------------------------------------------------------------------------------------------------\n");
 
     for (i = 1; i < lenght; i++) {
-        printf("%20d | %20d | %20d | %20d | %20d\n",
+        printf("%8d | %25d | %16d | %24d | %18d\n",
             i, 
             matrixOffer[i][1], 
             matrixOffer[i][0], 

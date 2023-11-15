@@ -51,23 +51,18 @@ int main(int argc, char **argv) {
     TEST_ERROR;
 
     /* parte la simulazione */
-    while (handleProcess && *dayRemains > 0 && !stop) {
-        /*if(checkEconomy()){*/
-            handleProcess = findPorts(&ship_list[shipIndex]);             
-        /*} 
-        else{
-            stop = 1;
+    while (handleProcess && *dayRemains > 0) {
+        handleProcess = findPorts(&ship_list[shipIndex]);   
+        if (!handleProcess) {
+            stop = 1; 
             msgsnd(msgget(getppid(), 0600), &stop, sizeof(int), 0);
-        }*/
-
+        }              
     } 
 
     pause(); 
-
     /* scollego segmento memoria condivisa */
     /*  shmdt(db); */
     exit(EXIT_SUCCESS); /* termina il processo figlio */
-
 }
 
 void initShip(ship* ship_list) {

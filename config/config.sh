@@ -17,13 +17,13 @@ export SO_CAPACITY=100
 # Max number of docks 
 export SO_BANCHINE=10
 # Min number of ports 
-export SO_PORTI=5
+export SO_PORTI=10
 # Min number of ships
-export SO_NAVI=100
+export SO_NAVI=1000
 # Number of supply and demand 
-export SO_FILL=10000
+export SO_FILL=100
 # Time of execution 
-export SO_DAYS=10
+export SO_DAYS=15
 
 
 
