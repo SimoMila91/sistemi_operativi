@@ -23,6 +23,7 @@ good* offerList;
 int shmid_offer; 
 
 
+
 int main(int argc, char **argv) {
     if(argc != 7){
         printf("error argc");
@@ -167,6 +168,7 @@ void initializeInventory(int totalOffer, int totalRequest) {
         offerList[j].amount = casualAmountOffer[j];
         lifeTime = rand() % (SO_MAX_VITA + 1 - SO_MIN_VITA) + SO_MIN_VITA;
         offerList[j].life = lifeTime; 
+
 
         /* creo una memoria condivisa per i lotti */
 

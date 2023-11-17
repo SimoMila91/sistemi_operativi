@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <math.h>
 #include <sys/shm.h>
+#include <sys/msg.h>
 #include <time.h>
 #include "../macro/macro.h"
 #include "../utility/utility.h"
@@ -20,11 +21,12 @@ database* db;
 int* dayRemains; 
 
 
+
 int main(int argc, char **argv) {
     
     int handleProcess = 1;
     int semId = atoi(argv[5]); 
-    int msg_id;
+
     int stop = 0;
     if(argc == 0) printf("errore\n");
 
@@ -210,8 +212,6 @@ int findPorts(ship* ship_list) {
         if (done)  { /* se la merce è scaduta e quindi non è stata caricata non si muove verso la richiesta */
             moveToPort('r', finalLot, idGood, ship_list); 
         }
-    } else {
-        printTest(216); 
     }
    
     TEST_ERROR;

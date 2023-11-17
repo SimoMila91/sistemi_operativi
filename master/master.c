@@ -17,6 +17,7 @@
 
 
 
+
 // port's variables 
 int shmid_port; 
 database* portList;
@@ -47,6 +48,7 @@ int main() {
     int rcv = -1;
     int shmid_day = shmget(IPC_PRIVATE, sizeof(int), 0600|IPC_CREAT); TEST_ERROR;
     int msg_id;
+    int *buffer_msg = malloc(sizeof(int));
     daysRemains = shmat(shmid_day, NULL, 0);
     *daysRemains = SO_DAYS;
     msg_id = msgget(getpid(), IPC_CREAT | IPC_EXCL | 0600); TEST_ERROR;
@@ -141,10 +143,7 @@ int main() {
     while(*daysRemains > 0 && rcv == -1)  { 
 
         alarm(1); 
-        rcv = msgrcv(msg_id, NULL, sizeof(int), 0, 0);
-            printTest(666);
-            printTest(rcv);  
-            printTest(666);
+        rcv = msgrcv(msg_id, buffer_msg, sizeof(int), 0, 0); TEST_ERROR;
 
     }
     printf("fine master\n"); 
@@ -163,7 +162,7 @@ void killProcess(){
     for(i = 0; i < SO_PORTI; i++){
         port = shmat(portList[i].keyPortMemory, NULL, 0); TEST_ERROR;
         kill(port->pid, SIGINT); TEST_ERROR;
-        shmdt(port);
+        shmdt(port); TEST_ERROR;
     }
 
 }
@@ -177,7 +176,6 @@ void alarmHandler(int signum) {
     if (*daysRemains > 0) {
         // dump giornaliero 
         printf("[ REPORT PROVVISORIO ]\n\n"); 
-      
         dumpSimulation(0); 
         *daysRemains-= 1; 
     } 
@@ -275,8 +273,10 @@ void dumpSimulation(int type) {
     /* totalGoods ports and ships */
     if (type == sizeof(int)) printf("non ci sono più richieste soddisfacibili\n");
     for (i = 0; i < SO_PORTI; i++) {
-
-        currentPort = shmat(portList[i].keyPortMemory, NULL, 1); 
+        if((currentPort = shmat(portList[i].keyPortMemory, NULL, 1))==NULL){
+            printf("Error generate attach %d \n",portList[i].keyPortMemory);
+           
+        }
         TEST_ERROR;
         reportPorts[i][0] = currentPort->pid; 
         reportPorts[i][3] = currentPort->inventory.request.amount -  currentPort->inventory.request.remains;
@@ -308,7 +308,7 @@ void dumpSimulation(int type) {
 
             currentLot = shmat(currentOffer[j].keyLots, NULL, 1); TEST_ERROR;
 
-            for (k = 0; k < currentOffer[j].maxLoots; k++) {
+            for (k = 0; k < currentOffer[j].maxLoots - 1; k++) {
 
 
                 if (currentLot->available) {
@@ -324,15 +324,17 @@ void dumpSimulation(int type) {
                             totalGoods[idGood][0] += currentLot[k].value; 
                         } else {
                             if (type) {
+                                
                                 goodsReport[currentLot[k].idGood][2] += currentLot[k].value; 
+                                  
+                                
                             }
                             totalGoods[idGood][3] += currentLot[k].value; 
                         }
                         break;
                     case 1: 
                         if (currentLot[k].life > (SO_DAYS - (*daysRemains))) {
-                            printTest(totalGoods[idGood][1]);
-                            printTest(currentLot[k].value);
+                           
                             totalGoods[idGood][1] += currentLot[k].value; 
                         } else {
                             if (type) {
@@ -386,7 +388,7 @@ void dumpSimulation(int type) {
 
     }
     printf("FINE REPORT\n");
-    printTest(375);
+   
 }
 
 void initializeMatrix(int **matrix, int r, int c) {
@@ -491,7 +493,7 @@ void printMaxPort(int **matrixOffer, int **matrixRequest, int lenght) {
 /* FINE METODI PER LA STAMPA*/
 
 int* getCasualWeight() {
-    printTest(480);
+
     int *offer = (int*)malloc(SO_PORTI * sizeof(int));
     int sum = 0;
     int i;
@@ -512,7 +514,7 @@ int* getCasualWeight() {
         /*resto -= offer[i];*/
         if(offer[i] == 0) offer[i]++;
     }
-    printTest(497);
+    
     return offer; 
 }
 
