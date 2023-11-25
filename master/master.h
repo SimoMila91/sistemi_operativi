@@ -20,5 +20,7 @@ void printMaxPort(int **matrixOffer, int **matrixRequest, int lenght);
 
 void killProcess();
 
+void remove_ipcs();
+
 #endif
 

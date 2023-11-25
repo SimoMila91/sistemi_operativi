@@ -12,8 +12,10 @@
 #include "../macro/macro.h"
 #include "../utility/utility.h"
 #include "porti.h"
+#include <signal.h>
 
 int numBytes;
+lot* lots;
 char *string;
 port* port_list;
 database* myData;   
@@ -39,6 +41,7 @@ int main(int argc, char **argv) {
     /* creo memoria condivisa per il porto */
     shm_port = createSharedMemory(sizeof(port) * 1); TEST_ERROR;
     port_list = shmat(shm_port, NULL, 0); 
+    shmctl(shm_port, IPC_RMID, NULL);
     port_list->sem_inventory_id = semget(IPC_PRIVATE, 2, IPC_CREAT | 0600); TEST_ERROR;
     semctl(port_list->sem_inventory_id, 0, SETVAL, 1); /* semaforo richiesta */
     TEST_ERROR;
@@ -53,6 +56,7 @@ int main(int argc, char **argv) {
     struct sembuf sb; 
     decreaseSem(sb, semId, 0);
     waitForZero(sb, semId, 0);
+    
     pause(); 
     printf("pause port finished\n");
 }
@@ -107,6 +111,23 @@ void initPort(int i, int totalOffer, int totalRequest) {
     //printf("IN PORTO  id %d--- q %d \n", port_list->inventory.request.idGood, port_list->inventory.request.amount);
 } 
 
+void remove_ipcs() {
+    semctl(port_list->sem_inventory_id, 0, IPC_RMID);
+    semctl(port_list->sem_inventory_id, 1, IPC_RMID);
+    semctl(port_list->sem_docks_id, 0, IPC_RMID);
+    shmdt(myData);
+    shmdt(port_list);
+    shmdt(offerList);
+    shmdt(lots);
+
+}
+
+void alarmHandler(int signum) {
+    if (signum == SIGINT) {
+        remove_ipcs();
+        exit(EXIT_SUCCESS);
+    }
+}
 
 int isDuplicate(int numGood, int numOffer) {
 
@@ -127,8 +148,7 @@ void initializeInventory(int totalOffer, int totalRequest) {
     int lifeTime;  
     int counterGoodsOffer; 
     int found; /* tipo merce */
-    int* casualAmountOffer; 
-    time_t t;
+    int* casualAmountOffer;
     srand(getpid());
     counterGoodsOffer = rand()% (SO_MERCI-1) + 1 ; 
     /* inizializzo la richiesta */
@@ -144,6 +164,7 @@ void initializeInventory(int totalOffer, int totalRequest) {
     /* creo una memoria condivisa per le offerte */
     shmid_offer = createSharedMemory(sizeof(good) * counterGoodsOffer); 
     offerList = shmat(shmid_offer, NULL, 0); TEST_ERROR;
+    shmctl(shmid_offer, IPC_RMID, NULL);
     port_list->inventory.keyOffers = shmid_offer; 
 
     for (j = 0; j < counterGoodsOffer; j++) {
@@ -173,8 +194,8 @@ void initializeInventory(int totalOffer, int totalRequest) {
         /* creo una memoria condivisa per i lotti */
 
         createLoots(casualAmountOffer[j], j, lifeTime, found); 
-               
     }
+    free(casualAmountOffer);
     
 }
 
@@ -183,7 +204,6 @@ void createLoots(int amount, int index, int lifetime, int idGood) {
 
     int i; 
     int maxLoots; 
-    lot* lots;
     int lotSize; 
     int carico;  
     struct timespec t;
@@ -203,11 +223,8 @@ void createLoots(int amount, int index, int lifetime, int idGood) {
     initLotSemaphore(maxLoots, index); TEST_ERROR;
     offerList[index].maxLoots = maxLoots;
     offerList[index].keyLots = createSharedMemory(sizeof(lot) * maxLoots); 
-
-                
-
-
     lots = shmat(offerList[index].keyLots, NULL, 0);  
+    shmctl(offerList[index].keyLots, IPC_RMID, NULL);
     for (i = 0; i < maxLoots-1; i++) {
         lots[i].value = lotSize; 
         lots[i].available = 1; 

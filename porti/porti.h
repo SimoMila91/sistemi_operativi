@@ -4,6 +4,8 @@
 
 void initPort(int i, int totalOffer, int totalRequest);
 
+void remove_ipcs();
+
 double distance(coordinate positionX, coordinate positionY);
 
 int isDuplicate(int numGood, int numOffer);

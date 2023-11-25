@@ -12,6 +12,7 @@
 #include "../macro/macro.h"
 #include "../utility/utility.h"
 #include "navi.h"
+#include <signal.h>  
 
 int numBytes;
 char *string;
@@ -20,7 +21,12 @@ database* db;
 
 int* dayRemains; 
 
-
+void alarmHandler(int signum) {
+    if (signum == SIGINT) {
+        remove_ipcs();
+        exit(EXIT_SUCCESS);
+    }
+}
 
 int main(int argc, char **argv) {
     
@@ -65,6 +71,12 @@ int main(int argc, char **argv) {
     /* scollego segmento memoria condivisa */
     /*  shmdt(db); */
     exit(EXIT_SUCCESS); /* termina il processo figlio */
+}
+
+void remove_ipcs() {
+    shmdt(ship_list);
+    shmdt(dayRemains);
+    shmdt(db);
 }
 
 void initShip(ship* ship_list) {
@@ -295,6 +307,8 @@ int loadLot(lot* lots, int idGood, ship* ship_list) {
     }
     ship_list->position = db[ship_list->keyOffer].position;
 
+    shmdt(port);
+
     return done; 
 }
 
@@ -340,7 +354,7 @@ void unloadLot(lot* lots, ship* ship_list) {
     ship_list->statusCargo = 0; 
 
     increaseSem(sops, port->sem_inventory_id, 0); 
-
+    shmdt(port);
 }
 
 /*int checkEconomy() {

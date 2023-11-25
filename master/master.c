@@ -13,6 +13,7 @@
 #include "../macro/macro.h"
 #include "../utility/utility.h"
 #include "master.h"
+#include <signal.h>
 
 
 
@@ -27,6 +28,10 @@ int shmid_ship;
 ship* shipList;
 
 int* daysRemains; 
+
+int semStartSimulation; 
+int msg_id;
+int *buffer_msg;
 
 int main() {
 
@@ -44,12 +49,11 @@ int main() {
     char msg_id_str[3*sizeof(int)+1];
     int* offerArray; 
     int* requestArray; 
-    int semStartSimulation; 
     int rcv = -1;
     int shmid_day = shmget(IPC_PRIVATE, sizeof(int), 0600|IPC_CREAT); TEST_ERROR;
-    int msg_id;
-    int *buffer_msg = malloc(sizeof(int));
+    buffer_msg = malloc(sizeof(int));
     daysRemains = shmat(shmid_day, NULL, 0);
+    shmctl(shmid_day, IPC_RMID, NULL);
     *daysRemains = SO_DAYS;
     msg_id = msgget(getpid(), IPC_CREAT | IPC_EXCL | 0600); TEST_ERROR;
     sprintf(msg_id_str,"%d", msg_id);
@@ -74,6 +78,7 @@ int main() {
    
     int shmid_port = shmget(IPC_PRIVATE, sizeof(database) * SO_PORTI, 0600|IPC_CREAT); TEST_ERROR;
     portList = shmat(shmid_port, NULL, 0); TEST_ERROR; 
+    shmctl(shmid_port, IPC_RMID, NULL);
     sprintf(shmid_port_str, "%d", shmid_port); 
     args[2] = shmid_port_str;
 
@@ -102,6 +107,8 @@ int main() {
             break;
         }
     }
+    free(offerArray);
+    free(requestArray);
 
     args[2] = shmid_port_str;
     args[4]= keySemMaster;
@@ -110,6 +117,7 @@ int main() {
     args[0] = name_file;
     shmid_ship = shmget(IPC_PRIVATE, sizeof(ship) * SO_NAVI, 0600|IPC_CREAT); TEST_ERROR; 
     shipList = shmat(shmid_ship, NULL, 0); TEST_ERROR;
+    shmctl(shmid_ship, IPC_RMID, NULL);
     sprintf(shmid_ship_str, "%d", shmid_ship);
     args[3] = shmid_ship_str;
     args[7] = msg_id_str;
@@ -151,6 +159,16 @@ int main() {
 
     dumpSimulation(*daysRemains == 0 ? 1 : rcv); 
     killProcess();
+    remove_ipcs();
+}
+
+void remove_ipcs(){
+    shmdt(daysRemains);
+    shmdt(portList);
+    shmdt(shipList);
+    semctl(semStartSimulation, 0, IPC_RMID);
+    msgctl(msg_id, IPC_RMID, NULL); TEST_ERROR;
+    free(buffer_msg);
 }
 
 void killProcess(){
@@ -273,11 +291,7 @@ void dumpSimulation(int type) {
     /* totalGoods ports and ships */
     if (type == sizeof(int)) printf("non ci sono più richieste soddisfacibili\n");
     for (i = 0; i < SO_PORTI; i++) {
-        if((currentPort = shmat(portList[i].keyPortMemory, NULL, 1))==NULL){
-            printf("Error generate attach %d \n",portList[i].keyPortMemory);
-           
-        }
-        TEST_ERROR;
+        currentPort = shmat(portList[i].keyPortMemory, NULL, 1); TEST_ERROR;
         reportPorts[i][0] = currentPort->pid; 
         reportPorts[i][3] = currentPort->inventory.request.amount -  currentPort->inventory.request.remains;
         
@@ -354,10 +368,10 @@ void dumpSimulation(int type) {
                 }
                 
             }
-            /*shmdt(currentLot); TEST_ERROR;*/
+            shmdt(currentLot); TEST_ERROR;
         } 
-        /*shmdt(currentPort); TEST_ERROR; 
-        shmdt(currentOffer); TEST_ERROR; */  
+        shmdt(currentPort); TEST_ERROR; 
+        shmdt(currentOffer); TEST_ERROR; 
     } 
 
     for (i = 0; i < SO_NAVI; i++) {
@@ -375,10 +389,10 @@ void dumpSimulation(int type) {
         }
     }
 
-    /*printTotalGoods(totalGoods, SO_MERCI+1);
+    printTotalGoods(totalGoods, SO_MERCI+1);
     printf("Il numero di navi con il carico a bordo è: %d\n", shipWithCargo); 
     printf("Il numero di navi senza carico a bordo è: %d\n", shipWithoutCargo); 
-    printf("Il numero di navi presso un porto è: %d\n", shipToPort); */  
+    printf("Il numero di navi presso un porto è: %d\n", shipToPort); 
     printReportPorts(reportPorts, SO_PORTI);
    
     /*if final simulation => */
@@ -388,7 +402,27 @@ void dumpSimulation(int type) {
 
     }
     printf("FINE REPORT\n");
-   
+
+    for(i = 0; i < SO_MERCI + 1; i++){
+        free(totalGoods[i]);        
+    }
+    free(totalGoods); 
+    for(i = 0; i < SO_PORTI + 1; i++){
+        free(reportPorts[i]);    
+    }
+    free(reportPorts);
+    for(i = 0; i < SO_MERCI + 1; i++){
+        free(goodsReport[i]);    
+    }
+    free(goodsReport);
+    for(i = 0; i < SO_MERCI + 1; i++){
+        free(maxOfferPort[i]);
+    }
+    free(maxOfferPort);
+    for(i = 0; i < SO_MERCI + 1; i++){
+        free(maxRequestPort[i]);
+    }
+    free(maxRequestPort);
 }
 
 void initializeMatrix(int **matrix, int r, int c) {
