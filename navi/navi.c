@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
     db = shmat(atoi(argv[2]), NULL, 0); TEST_ERROR; 
     
     initShip(&ship_list[shipIndex]); 
-    printTest(50);
+
     struct sembuf sb; 
     bzero(&sb, sizeof(struct sembuf ));
     decreaseSem(sb, semId, 0);

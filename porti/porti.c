@@ -278,6 +278,22 @@ int* getCasualWeightPort( int counter, int totalOffer) {
 
 }
 
+
+void initLotSemaphore(int lotLength, int index) {
+    
+    semctl(offerList[index].semLot, 0, SETVAL, lotLength); 
+    if(errno == 34){
+        errno = 0;
+    }else{
+        TEST_ERROR;   
+    }
+
+   
+    
+}
+
+
+
 int initDocksSemaphore() {
 
     int docks; 
@@ -307,9 +323,4 @@ int createSharedMemory(size_t size) {
     return shmid; 
 }
 
-void initLotSemaphore(int lotLength, int index) {
-    
-    semctl(offerList[index].semLot, 0, SETVAL, lotLength); TEST_ERROR;
-   
-    
-} 
+ 
