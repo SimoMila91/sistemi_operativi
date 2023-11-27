@@ -15,7 +15,7 @@ void decreaseSem (struct sembuf sops, int sem_id, int sem_num){
     sops.sem_flg = 0; 
 
     semop(sem_id, &sops, 1); 
-    TEST_ERROR;
+
 }
 
 void increaseSem (struct sembuf sops, int sem_id, int sem_num){
@@ -24,7 +24,7 @@ void increaseSem (struct sembuf sops, int sem_id, int sem_num){
     sops.sem_flg = 0; 
 
     semop(sem_id, &sops, 1); 
-    TEST_ERROR;
+
 }
 
 
@@ -34,7 +34,7 @@ void waitForZero (struct sembuf sops, int sem_id, int sem_num){
     sops.sem_flg = 0; 
 
     semop(sem_id, &sops, 1); 
-    TEST_ERROR;
+
 }
 
 

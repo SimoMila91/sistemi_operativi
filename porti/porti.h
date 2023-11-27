@@ -22,6 +22,8 @@ int createSharedMemory(size_t size);
 
 void initLotSemaphore(int lotLength, int index);
 
+void alarmHandler(int signum);
+
 
 
 #endif

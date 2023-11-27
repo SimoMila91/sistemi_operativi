@@ -22,6 +22,7 @@
 // port's variables 
 int shmid_port; 
 database* portList;
+int* ports_id;
 
 // ship's variables 
 int shmid_ship;
@@ -50,7 +51,16 @@ int main() {
     int* offerArray; 
     int* requestArray; 
     int rcv = -1;
-    int shmid_day = shmget(IPC_PRIVATE, sizeof(int), 0600|IPC_CREAT); TEST_ERROR;
+    int shmid_day;
+    
+
+    if(SO_MERCI == 1){
+        printf("Per poter procedere con la simulazione è necessario avere almeno SO_MERCI pari a 2\n");
+        exit(EXIT_SUCCESS);
+    }
+
+    ports_id = malloc(sizeof(int)* SO_PORTI);
+    shmid_day = shmget(IPC_PRIVATE, sizeof(int), 0600|IPC_CREAT); TEST_ERROR;
     buffer_msg = malloc(sizeof(int));
     daysRemains = shmat(shmid_day, NULL, 0);
     shmctl(shmid_day, IPC_RMID, NULL);
@@ -59,11 +69,14 @@ int main() {
     sprintf(msg_id_str,"%d", msg_id);
     
     sprintf(shimd_days_str, "%d", shmid_day);
-    semStartSimulation =  semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); // assegno semaforo
+    semStartSimulation =  semget(IPC_PRIVATE, 3, IPC_CREAT | 0600); // assegno semaforo
     TEST_ERROR;
     signal(SIGALRM, alarmHandler);
+    signal(SIGINT, alarmHandler);
 
     semctl(semStartSimulation, 0, SETVAL, (SO_PORTI + SO_NAVI + 1)); TEST_ERROR;
+    semctl(semStartSimulation, 1, SETVAL, SO_NAVI); TEST_ERROR;
+    semctl(semStartSimulation, 2, SETVAL, SO_PORTI); TEST_ERROR;
  
     sprintf(keySemMaster, "%d", semStartSimulation);
     args[5]  = keySemMaster; 
@@ -86,6 +99,7 @@ int main() {
 
     for(i=0; i < SO_PORTI; i++) {
         pid_t pid = fork(); 
+        ports_id[i] = pid;
         switch (pid)
         {
         case -1:
@@ -159,28 +173,34 @@ int main() {
 
     dumpSimulation(*daysRemains == 0 ? 1 : rcv); 
     killProcess();
-    remove_ipcs();
+    //remove_ipcs();
 }
 
 void remove_ipcs(){
+    struct sembuf sb;
+    waitForZero(sb, semStartSimulation, 2);
     shmdt(daysRemains);
     shmdt(portList);
     shmdt(shipList);
-    semctl(semStartSimulation, 0, IPC_RMID);
+    semctl(semStartSimulation, 0, IPC_RMID); TEST_ERROR;
+    semctl(semStartSimulation, 1, IPC_RMID); TEST_ERROR;
+    semctl(semStartSimulation, 2, IPC_RMID); TEST_ERROR;
     msgctl(msg_id, IPC_RMID, NULL); TEST_ERROR;
     free(buffer_msg);
+    free(ports_id);
+    TEST_ERROR;
 }
 
 void killProcess(){
     int i; 
-    port* port;
+
     for(i = 0; i < SO_NAVI; i++){       //prima navi perchè altrimenti continuano a tentare l'accesso alla memoria condivisa del porto morto
         kill(shipList[i].pid, SIGINT);
     }    
     for(i = 0; i < SO_PORTI; i++){
-        port = shmat(portList[i].keyPortMemory, NULL, 0); TEST_ERROR;
-        kill(port->pid, SIGINT); TEST_ERROR;
-        shmdt(port); TEST_ERROR;
+        
+        kill(ports_id[i], SIGINT); TEST_ERROR;
+
     }
 
 }
@@ -189,10 +209,16 @@ void killProcess(){
 
 void alarmHandler(int signum) {
     //printf("%d", signum); /*da cancellare*/
-    if(signum == SIGINT)
-        printf("DAY %d\n", *daysRemains);
+    if(signum == SIGINT){
+        printTest(199);
+        killProcess();
+        //remove_ipcs();
+        exit(EXIT_SUCCESS);
+    }
+      
     if (*daysRemains > 0) {
         // dump giornaliero 
+        printTest(221);
         printf("[ REPORT PROVVISORIO ]\n\n"); 
         dumpSimulation(0); 
         *daysRemains-= 1; 
@@ -370,6 +396,7 @@ void dumpSimulation(int type) {
             }
             shmdt(currentLot); TEST_ERROR;
         } 
+
         shmdt(currentPort); TEST_ERROR; 
         shmdt(currentOffer); TEST_ERROR; 
     } 

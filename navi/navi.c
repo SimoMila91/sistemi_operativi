@@ -20,10 +20,11 @@ ship* ship_list;
 database* db;
 
 int* dayRemains; 
+int semId;
 
 void alarmHandler(int signum) {
     if (signum == SIGINT) {
-        remove_ipcs();
+        //remove_ipcs();
         exit(EXIT_SUCCESS);
     }
 }
@@ -31,12 +32,12 @@ void alarmHandler(int signum) {
 int main(int argc, char **argv) {
     
     int handleProcess = 1;
-    int semId = atoi(argv[5]); 
+    semId = atoi(argv[5]); 
 
     int stop = 0;
     if(argc == 0) printf("errore\n");
 
-   
+    signal(SIGINT, alarmHandler);
     ship_list = shmat(atoi(argv[3]), NULL, 0); TEST_ERROR;
     dayRemains = shmat(atoi(argv[6]), NULL, 0); TEST_ERROR;
     //msg_id = shmat(atoi(argv[7]), NULL, 0); TEST_ERROR;
@@ -46,8 +47,7 @@ int main(int argc, char **argv) {
     db = shmat(atoi(argv[2]), NULL, 0); TEST_ERROR; 
     
     initShip(&ship_list[shipIndex]); 
-
-    printf("fine init\n");
+    printTest(50);
     struct sembuf sb; 
     bzero(&sb, sizeof(struct sembuf ));
     decreaseSem(sb, semId, 0);
@@ -74,9 +74,12 @@ int main(int argc, char **argv) {
 }
 
 void remove_ipcs() {
+    struct sembuf sb;
     shmdt(ship_list);
     shmdt(dayRemains);
     shmdt(db);
+    TEST_ERROR;
+    decreaseSem(sb, semId, 1); TEST_ERROR;
 }
 
 void initShip(ship* ship_list) {

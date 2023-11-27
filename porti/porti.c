@@ -23,6 +23,7 @@ int shm_port;
 
 good* offerList;
 int shmid_offer; 
+int sem_sync_id;
 
 
 
@@ -35,13 +36,13 @@ int main(int argc, char **argv) {
     myData = shmat(atoi(argv[2]), NULL, 0); TEST_ERROR;
     int totalOffer = atoi(argv[3]); 
     int totalRequest = atoi(argv[4]); 
-    int semId = atoi(argv[5]); 
+    int sem_sync_id = atoi(argv[5]); 
     
-
+    signal(SIGINT, alarmHandler);
     /* creo memoria condivisa per il porto */
     shm_port = createSharedMemory(sizeof(port) * 1); TEST_ERROR;
     port_list = shmat(shm_port, NULL, 0); 
-    shmctl(shm_port, IPC_RMID, NULL);
+    shmctl(shm_port, IPC_RMID, NULL); TEST_ERROR;
     port_list->sem_inventory_id = semget(IPC_PRIVATE, 2, IPC_CREAT | 0600); TEST_ERROR;
     semctl(port_list->sem_inventory_id, 0, SETVAL, 1); /* semaforo richiesta */
     TEST_ERROR;
@@ -54,8 +55,8 @@ int main(int argc, char **argv) {
 
 
     struct sembuf sb; 
-    decreaseSem(sb, semId, 0);
-    waitForZero(sb, semId, 0);
+    decreaseSem(sb, sem_sync_id, 0);TEST_ERROR;
+    waitForZero(sb, sem_sync_id, 0);TEST_ERROR;
     
     pause(); 
     printf("pause port finished\n");
@@ -100,7 +101,7 @@ void initPort(int i, int totalOffer, int totalRequest) {
     myData[i].position.y = port_list->position.y; 
 
     port_list->pid = getpid();
-    port_list->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); /* assegno il semaforo per le banchine */
+    port_list->sem_docks_id = semget(IPC_PRIVATE, 1, IPC_CREAT | 0600); /* assegno il semaforo per le banchine */
     TEST_ERROR;
     port_list->totalDocks = initDocksSemaphore(); /* inizializzo il semaforo per le banchine e salvo il numero di banchine */
     initializeInventory(totalOffer, totalRequest); 
@@ -112,19 +113,21 @@ void initPort(int i, int totalOffer, int totalRequest) {
 } 
 
 void remove_ipcs() {
-    semctl(port_list->sem_inventory_id, 0, IPC_RMID);
-    semctl(port_list->sem_inventory_id, 1, IPC_RMID);
-    semctl(port_list->sem_docks_id, 0, IPC_RMID);
-    shmdt(myData);
-    shmdt(port_list);
-    shmdt(offerList);
-    shmdt(lots);
-
+    struct sembuf sb;
+    waitForZero(sb, sem_sync_id, 1);TEST_ERROR;
+    semctl(port_list->sem_inventory_id, 0, IPC_RMID);TEST_ERROR;
+    semctl(port_list->sem_inventory_id, 1, IPC_RMID);TEST_ERROR;
+    semctl(port_list->sem_docks_id, 0, IPC_RMID);TEST_ERROR;
+    shmdt(myData);TEST_ERROR;
+    shmdt(port_list);TEST_ERROR;
+    shmdt(offerList);TEST_ERROR;
+    shmdt(lots);TEST_ERROR;
+    decreaseSem(sb, sem_sync_id, 2);TEST_ERROR;
 }
 
 void alarmHandler(int signum) {
     if (signum == SIGINT) {
-        remove_ipcs();
+        //remove_ipcs();
         exit(EXIT_SUCCESS);
     }
 }
@@ -218,7 +221,7 @@ void createLoots(int amount, int index, int lifetime, int idGood) {
         lotSize = t.tv_nsec% SO_SIZE + 1; 
     }
     maxLoots = amount / lotSize + 1; 
-    offerList[index].semLot = semget(IPC_PRIVATE, 1, IPC_CREAT | 0666); TEST_ERROR;
+    offerList[index].semLot = semget(IPC_PRIVATE, 1, IPC_CREAT | 0600); TEST_ERROR;
  
     initLotSemaphore(maxLoots, index); TEST_ERROR;
     offerList[index].maxLoots = maxLoots;
@@ -305,13 +308,8 @@ int createSharedMemory(size_t size) {
 }
 
 void initLotSemaphore(int lotLength, int index) {
-    if (offerList[index].semLot == -1) {
-        perror("semget error: Lot Sem"); 
-        exit(EXIT_FAILURE); 
-    }
-
-    if (semctl(offerList[index].semLot, 0, SETVAL, lotLength) == -1) {
-        perror("semctl"); 
-        exit(EXIT_FAILURE); 
-    }
+    
+    semctl(offerList[index].semLot, 0, SETVAL, lotLength); TEST_ERROR;
+   
+    
 } 

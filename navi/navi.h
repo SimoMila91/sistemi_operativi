@@ -19,6 +19,8 @@ int loadLot(lot* lots, int idGood, ship* shipList);
 void unloadLot(lot* lots, ship* shipList);
 
 void remove_ipcs();
+
+void alarmHandler(int signum);
 /* int checkEconomy(); */
 
 
