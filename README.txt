@@ -13,10 +13,6 @@ Inserire i seguenti comandi da terminale:
  - make run 
 
 
-[ IMPORTANTE - LISTA TODO ]
-
-- ultimo punto del giornaliere controllando per ogni lotto del porto type e available 
-- funzione merci report finale 
 
 
 [ DUMP GIORNALIERO ]

@@ -26,6 +26,7 @@
 #define SO_SPEED atoi(getenv("SO_SPEED"))	
 
 
+
 typedef struct {
     double x; 
     double y; 

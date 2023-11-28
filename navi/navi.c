@@ -21,6 +21,7 @@ database* db;
 
 int* dayRemains; 
 int semId;
+sigset_t maschera;
 
 void alarmHandler(int signum) {
     if (signum == SIGINT) {
@@ -47,7 +48,8 @@ int main(int argc, char **argv) {
     db = shmat(atoi(argv[2]), NULL, 0); TEST_ERROR; 
     
     initShip(&ship_list[shipIndex]); 
-
+    sigemptyset(&maschera);
+    sigaddset(&maschera, SIGINT);
     struct sembuf sb; 
     bzero(&sb, sizeof(struct sembuf ));
     decreaseSem(sb, semId, 0);
@@ -114,9 +116,10 @@ int moveToPort(char type, lot* lots, int idGood, ship* ship) {
     double dist; 
     double travelTime; 
     int done = 0;  
+ 
 
     struct timespec sleepTime; 
-
+ 
     dist = distance(ship_list->position, db[(type == 'o' ? ship_list->keyOffer : ship_list->keyRequest )].position); 
     travelTime = dist / SO_SPEED; 
      
@@ -179,7 +182,10 @@ int findPorts(ship* ship_list) {
             }
         
         } 
-  
+        if(sigprocmask(SIG_BLOCK, &maschera, NULL)<0){
+            TEST_ERROR;
+        }
+
         portList = shmat(db[nearestPort_index].keyPortMemory, NULL, 0); TEST_ERROR; 
         offerList = shmat(portList->inventory.keyOffers, NULL, 0); TEST_ERROR; 
 
@@ -219,6 +225,9 @@ int findPorts(ship* ship_list) {
         }
         shmdt(portList);      
         shmdt(offerList); 
+        if(sigprocmask(SIG_UNBLOCK, &maschera, NULL)<0){
+            TEST_ERROR;
+        }
     }
     if (findPorts) {
         ship_list->keyOffer = nearestPort_index; 
